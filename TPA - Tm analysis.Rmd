@@ -1,0 +1,357 @@
+---
+title: "TPA - thylakoid membrane Tm analysis"
+author: "Hugo Scharfenstein"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Load packages
+```{r}
+#Data import and export packages
+library(readxl)
+library(writexl)
+#Data wrangling packages
+library(tidyverse)
+library(broom)
+library(lubridate)
+library(rstatix)
+# Libraries for fitting curves
+library(nls.multstart)
+library(nlstools)
+library(MuMIn)
+library(drc)
+#Data visualisation packages
+library(ggpubr)
+library(cowplot)
+library(purrr)
+``` 
+
+Import data and cleanup
+```{r}
+TM.df <- read_xlsx("./GCB dataset.xlsx", sheet = 6) %>%
+  na.omit() %>%
+  mutate(Relative_FvFm = case_when(Relative_FvFm == 0 ~ 0.001, 
+                                   TRUE ~ Relative_FvFm)) %>%
+  filter(Relative_FvFm <= 100) %>%
+  mutate(Assay_temperature_measured = as.numeric(Assay_temperature_measured)) %>%
+  mutate(Relative_FvFm = as.numeric(Relative_FvFm))
+
+#Labels for plot facets
+temperature.labs <- c('27°C', '29°C', '31°C')
+names(temperature.labs) <- c('27', '29', '31')
+```
+
+Visualise progression of relative Fv/Fm across increasing temperatures
+```{r}
+Tm.df2 <- TM.df %>%
+  filter(Nutrient_treatment == 'IMK') %>%
+  group_by(Nutrient_treatment, Measurement_date, Assay_temperature_programmed, EE_treatment, Lineage) %>%
+  mutate(Relative_FvFm = mean(Relative_FvFm)) %>%
+  ungroup() %>%
+  dplyr::select(Nutrient_treatment, Growth_temperature, EE_treatment, Lineage, Assay_temperature_measured, Relative_FvFm) %>%
+  distinct()
+
+Tm.plot <- Tm.df2 %>%
+  ggplot(aes(x = Assay_temperature_measured, y = Relative_FvFm, colour = EE_treatment)) +
+  geom_point(size = 0.75) +
+  geom_smooth(method=mgcv::gam, formula = y~s(x, bs = "cs", k = 3), se = FALSE, size = 0.75) +
+  facet_grid(.~Growth_temperature) + 
+  scale_x_continuous('Temperature (°C)', breaks=(33:42*1), limits = c(32.75,42.25), expand = c(0,0)) +
+  scale_y_continuous(expression(bold(F[v]/F[m]~relative~to~control~("%"))), breaks=(0:100*20), expand = c(0,0), limits = c(0,100)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black"))
+Tm.plot
+```
+
+Model dose response curves of Fv/Fm to temperature
+```{r}
+#Fit three different models
+Tm.models <- TM.df %>%
+  filter(Nutrient_treatment == 'IMK') %>%
+  filter(Assay_temperature_measured != 27) %>%
+  dplyr::select(EE_treatment, Lineage, Growth_temperature, Assay_temperature_measured, Relative_FvFm) %>%
+  nest(data = c(Assay_temperature_measured, Relative_FvFm)) %>%
+  mutate(model_G.4 = map(data, ~ drm(Relative_FvFm ~ Assay_temperature_measured, 
+                                 data = ., 
+                                 fct = G.4(fixed = c(NA, 0.001, NA, NA),
+                                           names = c("b", "c", "d", "e"))))) %>%
+  mutate(model_L.4 = map(data, ~ drm(Relative_FvFm ~ Assay_temperature_measured, 
+                                 data = ., 
+                                 fct = L.4(fixed = c(NA, 0.001, NA, NA),
+                                           names = c("Slope", "Lower Limit", "Upper Limit", "ED50"))))) %>%
+  mutate(model_W1.4 = map(data, ~ drm(Relative_FvFm ~ Assay_temperature_measured, 
+                                 data = ., 
+                                 fct = W1.4(fixed = c(NA, 0.001, NA, NA),
+                                            names = c("Slope", "Lower Limit", "Upper Limit", "ED50"))))) %>%
+  pivot_longer(cols = model_G.4:model_W1.4, names_to = "model_id", values_to = "model") %>%
+  mutate(model_id = case_when(str_detect(model_id, '_G.4') ~ 'G.4',
+                              str_detect(model_id, '_L.4') ~ 'L.4',
+                              str_detect(model_id, '_W1.4') ~ 'W1.4'))
+
+#Visualise model fits
+model_G.4_vis <- Tm.models %>% filter(model_id == 'G.4') %>% pull(model)
+model_L.4_vis <- Tm.models %>% filter(model_id == 'L.4') %>% pull(model)
+model_W1.4_vis <- Tm.models %>% filter(model_id == 'W1.4') %>% pull(model)
+model_vis_labels <- Tm.models %>% dplyr::select(Lineage, Growth_temperature) %>% distinct()
+
+par(mfrow = c(4, 6))
+par(mar = c(2, 2, 2, 2))
+
+for (i in 1:length(model_G.4_vis)) {
+  lineage <- model_vis_labels$Lineage[[i]]
+  growth_temp <- model_vis_labels$Growth_temperature[[i]]
+  plot(model_G.4_vis[[i]], xlab = "Concentration", ylab = "Percent Response", type = 'all', lty = 1, lwd = 2,
+       main = paste(lineage, 'at' ,growth_temp, '°C'))
+  if (length(model_L.4_vis) >= i)
+    plot(model_L.4_vis[[i]], add = TRUE, col = "forestgreen", lty = 2, lwd = 2)
+  if (length(model_W1.4_vis) >= i)
+    plot(model_W1.4_vis[[i]], add = TRUE, col = "pink", lty = 2, lwd = 2)
+}
+```
+
+Model selection and parameter extraction
+```{r}
+#Calculate parameters to evaluate model fit and ED50
+Tm.models_fit <- Tm.models %>%
+  mutate(lack_of_fit = map2(model, data, ~ data.frame(modelFit(.x)) %>% 
+                              filter(row.names(.) == "DRC model"))) %>%
+  unnest(lack_of_fit) %>%
+  mutate(AIC = map(model, ~ data.frame(AIC = AIC(.x)))) %>%
+  mutate(AICc = map(model, ~ data.frame(AICc = AICc(.x)))) %>%
+  mutate(ED50 = map(model, ~ data.frame(ED50 = ED(.x, 50, interval="delta")))) %>%
+  unnest(c(AIC, AICc, ED50))
+
+#Select best model fit based on lowest AICc score
+Tm.models_selec <- Tm.models_fit %>%
+  group_by(Growth_temperature, Lineage) %>%
+  filter(AICc - min(AICc) <= 2) %>% #Keep models within Δ2 AICc of the lowest score
+  filter(ED50.Std..Error == min(ED50.Std..Error)) %>% #Keep models with lowest CI for ED50
+  ungroup() %>%
+  count(model_id) #Weibull model is overwhelmingly the best fit (83/90 fits) - keep this model
+
+Tm.models_final <- Tm.models_fit %>% filter(model_id == 'W1.4')
+```
+
+Test for significant differences between experimental evolution treatments
+```{r}
+#Check anova assumptions (QQplots to check for normal distribution)
+aov.Tm_27C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 27, ])
+qqnorm(aov.Tm_27C$residuals) 
+qqline(aov.Tm_27C$residuals)
+
+aov.Tm_29C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 29, ])
+qqnorm(aov.Tm_29C$residuals) 
+qqline(aov.Tm_29C$residuals)
+
+aov.Tm_31C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 31, ])
+qqnorm(aov.Tm_31C$residuals) 
+qqline(aov.Tm_31C$residuals)
+#QQplots look ok
+
+#Check anova assumptions (boxplots to check for equal variance)
+boxplot(ED50.Estimate ~ EE_treatment, xlab='EE_treatment', ylab='Tm', data = Tm.models_final[Tm.models_final$Growth_temperature == 27, ])
+boxplot(ED50.Estimate ~ EE_treatment, xlab='EE_treatment', ylab='Tm', data = Tm.models_final[Tm.models_final$Growth_temperature == 29, ])
+boxplot(ED50.Estimate ~ EE_treatment, xlab='EE_treatment', ylab='Tm', data = Tm.models_final[Tm.models_final$Growth_temperature == 31, ])
+#Except TP1@27°C and TP1/TP5@31°C homogeneity of variances looks ok
+
+#Check for significant differences between experimental evolution treatments (using Tukey’s HSD)
+tukey_hsd.Tm_27C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 27, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 27)
+
+tukey_hsd.Tm_29C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 29, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 29)
+
+tukey_hsd.Tm_31C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 31, ]) %>% 
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 31)
+
+#Combine outputs from Tukey'S HSD into a single df
+tukey_hsd.Tm <- rbind(tukey_hsd.Tm_27C, tukey_hsd.Tm_29C) %>% rbind(tukey_hsd.Tm_31C)
+```
+
+Plot curves and ED50 values
+```{r}
+#Augment data
+Tm.newdata <- tibble(Assay_temperature_measured = seq(min(TM.df$Assay_temperature_measured), max(TM.df$Assay_temperature_measured),
+                                                      length.out = 42)) %>%
+  as.data.frame()
+
+Tm.preds_mult <- Tm.models_final %>%
+  mutate(., rate_preds = map(model, augment, newdata = Tm.newdata)) %>%
+  dplyr::select(-c(model, data)) %>%
+  unnest(rate_preds) %>%
+  group_by(Growth_temperature, EE_treatment, Assay_temperature_measured) %>%
+  mutate(ave.fitted = mean(.fitted)) %>%
+  mutate(sd.fitted = sd(.fitted))
+
+#Get confidence intervals of fits
+Tm.preds_CI <- Tm.models_final %>% 
+  mutate(pred_ci = purrr::map(.x = model, ~ predict(., newdata = Tm.newdata, interval = c("confidence")) %>% as.data.frame())) %>%
+  dplyr::select(EE_treatment, Growth_temperature, Lineage, pred_ci) %>%
+  unnest(pred_ci) %>%
+  mutate(Lower = case_when(Lower < 0 ~ 0,
+                           T ~ Lower)) %>%
+  group_by(Growth_temperature, Lineage) %>%
+  mutate(Assay_temperature_measured = seq(min(TM.df$Assay_temperature_measured), max(TM.df$Assay_temperature_measured),
+                                          length.out = 42)) %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) 
+
+#Prepare raw data for plotting
+Tm.df3 <- Tm.df2 %>%
+  group_by(Growth_temperature, EE_treatment, Assay_temperature_measured) %>%
+  mutate(ave_Relative_FvFm = mean(Relative_FvFm)) %>%
+  mutate(ave_sd = sd(Relative_FvFm)) %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) 
+
+#Plot fits at treatment level
+Tm_treat.plot <- Tm.preds_mult %>%
+  ggplot() +
+  geom_point(aes(x = Assay_temperature_measured, y = ave_Relative_FvFm, colour = EE_treatment), Tm.df3, size = 2, pch = 20, shape = 0) +
+  geom_linerange(aes(x = Assay_temperature_measured, y = ave_Relative_FvFm, ymin = ave_Relative_FvFm-ave_sd,
+                     ymax = ave_Relative_FvFm+ave_sd, colour = EE_treatment), Tm.df3, linewidth = 0.25) +
+  geom_ribbon(aes(x = Assay_temperature_measured, y = ave.fitted, ymin = ave.fitted-sd.fitted, ymax = ave.fitted+sd.fitted,
+                  fill = EE_treatment), alpha = 0.25) +
+  geom_line(aes(x = Assay_temperature_measured, y = ave.fitted, colour = EE_treatment), linewidth = 0.25) +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature = temperature.labs)) + 
+  scale_x_continuous('Temperature (ºC)', expand =c(0,0), limits = c(32, 43), breaks = seq(32, 43, by = 2))  +
+  scale_y_continuous(expression(bold(F[v]/F[m]~relative~to~control~("%"))), limits = c(0, 100), expand = c(0,0)) +
+  scale_colour_manual('Experimental evolution treatment', values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        title = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = FALSE)
+Tm_treat.plot
+
+#Plot fits at lineage level
+Tm_lin.plot <- Tm.preds_mult %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) %>%
+  ggplot() +
+  geom_point(aes(x = Assay_temperature_measured, y = Relative_FvFm, colour = Growth_temperature), Tm.df3, size = 3, pch = 20, shape = 0) +
+  geom_ribbon(aes(x = Assay_temperature_measured, y = Prediction, ymin = Lower, ymax = Upper, fill = Growth_temperature),
+              Tm.preds_CI, alpha = 0.5) +
+  geom_line(aes(x = Assay_temperature_measured, y = .fitted, colour = Growth_temperature), linewidth = 0.25) +
+  facet_wrap(.~Lineage, ncol = 6) +
+  scale_x_continuous('Assay temperature (ºC)', expand =c(0,0), limits = c(32, 43), breaks = seq(32, 43, by = 2))  +
+  scale_y_continuous(expression(bold(F[v]/F[m]~relative~to~control~("%"))), limits = c(0, NA), expand = c(0, 0)) +
+  scale_colour_manual('Growth temperature (°C)', values=c("black","#abd9e9", "#f46d43")) +
+  scale_fill_manual(values=c("black","#abd9e9", "#f46d43")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        title = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = FALSE)
+Tm_lin.plot
+
+#Plot ED50 values
+TM_ED50.plot <- Tm.models_final %>%
+  group_by(Lineage, Growth_temperature) %>%
+  ggplot(aes(x = EE_treatment, y = ED50.Estimate)) +
+  geom_boxplot(aes(fill = EE_treatment), size = 0.75) +
+  stat_pvalue_manual(tukey_hsd.Tm, label = "p.adj.signif", y.position = c(40.5, 40.5, 40.2, 40.5, 40.2, 40), tip.length = 0.01) +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature = temperature.labs)) + 
+  scale_x_discrete('Experimental evolution treatment', expand = c(0,0)) +
+  scale_y_continuous('Melting temperature (°C)', expand = c(0,0), limits = c(35.5, 41)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = FALSE)
+TM_ED50.plot
+```
+
+Combine Tm assay plots and combine with ExROS plots
+```{r}
+Tm.plots <- cowplot::plot_grid(Tm_treat.plot,
+                               TM_ED50.plot + rremove('xlab'),
+                               labels = c("A", "B"),
+                               ncol = 1,
+                               align = "v",
+                               rel_heights = c(1, 0.75))
+Tm.plots
+
+#Ensure TPA - ExROS analysis has been carried out and ExROS plots are generated to proceed
+Tm_with_ExROS.plots <- cowplot::plot_grid(Tm.plots,
+                                          ExROS.plots.annot,
+                                          ncol = 1,
+                                          align = "v",
+                                          rel_heights = c(1, 0.4))
+Tm_with_ExROS.plots
+```
+
+Save plots
+```{r}
+ggsave(plot = Tm_with_ExROS.plots, "TPA - Tm with ExROS plots.pdf", 
+       path = "./",
+       width = 10,
+       height = 12.5,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+
+ggsave(plot = Tm_lin.plot, "TPA - Tm lineage level fit.pdf", 
+       path = "./",
+       width = 15,
+       height = 10,
+       units = 'in',
+       dpi = 300)
+```
+
+Export data
+```{r}
+Tm.data_xl <- Tm.models_final %>%
+  filter(Growth_temperature == 27 | Growth_temperature == 31) %>%
+  dplyr::select(Growth_temperature, Lineage, ED50.Estimate) %>%
+  distinct() %>%
+  arrange(by_group = Lineage) %>%
+  write_xlsx(path = "./TPA - Tm analysis output.xlsx", 
+             col_names = TRUE, 
+             format_headers = TRUE)
+```

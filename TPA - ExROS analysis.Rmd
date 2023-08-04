@@ -1,0 +1,225 @@
+---
+title: "TPA - ExROS analysis"
+author: "Hugo Scharfenstein"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Load packages
+```{r}
+#Data import and export packages
+library(readxl)
+library(writexl)
+#Data wrangling packages
+library(tidyverse)
+library(stringr)
+library(rstatix)
+#Data visualisation packages
+library(SciViews)
+library(ggpubr)
+```
+
+Import data
+```{r}
+ExROS.df <- read_xlsx("./GCB dataset.xlsx", sheet = 5)
+
+#Relevel nutrient treatments
+ExROS.df$Growth_temperature <- ordered(ExROS.df$Growth_temperature, levels = c('27', '29', '31'))
+ExROS.df$Nutrient_treatment <- ordered(ExROS.df$Nutrient_treatment, levels = c('IMK', 'NO3_depleted'))
+
+#Prepare labels for plot facets
+nutrient.labs <- c("Nitrate replete", "Nitrate depleted")
+names(nutrient.labs) <- c('IMK', "NO3_depleted")
+growth.labs <- c("Growth cycle 1", "Growth cycle 2")
+names(growth.labs) <- c('1', "2")
+temperature.labs <- c('21°C', '23°C', '25°C', '27°C', '29°C', '31°C', '33°C')
+names(temperature.labs) <- c('21', '23', '25', '27', '29', '31', '33')
+```
+
+ExROS analyses
+```{r}
+#Convert OD data to cell density for subsequent normalisation
+ExROS.df <- ExROS.df %>%
+  group_by(Nutrient_treatment, Growth_cycle, Growth_temperature, Measurement_date) %>%
+  mutate(CellD=case_when(str_detect(Growth_temperature,"27") ~ 4300000*OD_670nm_blanked+320,
+                         str_detect(Growth_temperature,"29") ~ 3000000*OD_670nm_blanked-62000,
+                         str_detect(Growth_temperature,"31") ~ 2600000*OD_670nm_blanked+26000,
+                    ))
+
+#Filter out negative values and calculate median from technical replicates and calculate normalised ExROS values
+ExROS.df2 <- ExROS.df %>%
+  filter(ExROS_blanked >= 0) %>%
+  filter(Nutrient_treatment == 'IMK') %>%
+  group_by(Nutrient_treatment, Growth_temperature, Lineage) %>%
+  mutate(ExROS_normalised = ExROS_blanked/CellD) %>%
+  mutate(ExROS_normalised = median(ExROS_normalised)) %>%
+  dplyr::select(!c(ExROS, Plate)) %>%
+  distinct() %>%
+  ungroup()
+
+#Calculate delta ExROS values
+ExROS.df3 <- ExROS.df2 %>%
+  dplyr::select(Growth_temperature, EE_treatment, Lineage, ExROS_normalised) %>%
+  distinct() %>%
+  group_by(Lineage) %>%
+  mutate(Delta_ExROS = ((ExROS_normalised[Growth_temperature == 31])-(ExROS_normalised[Growth_temperature == 27]))) %>%
+  dplyr::select(EE_treatment, Lineage, Delta_ExROS) %>%
+  distinct() %>%
+  ungroup()
+```
+
+Test for significant differences between experimental evolution treatments (ExROS)
+```{r}
+#Check anova assumptions (QQplots to check for normal distribution)
+aov.ExROS_27C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 27, ])
+qqnorm(aov.ExROS_27C$residuals) 
+qqline(aov.ExROS_27C$residuals)
+
+aov.ExROS_29C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 29, ])
+qqnorm(aov.ExROS_29C$residuals) 
+qqline(aov.ExROS_29C$residuals)
+
+aov.ExROS_31C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 31, ])
+qqnorm(aov.ExROS_31C$residuals) 
+qqline(aov.ExROS_31C$residuals)
+#QQplots look ok (27°C is borderline)
+
+#Check anova assumptions (boxplots to check for equal variance)
+boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS', data = ExROS.df2[ExROS.df2$Growth_temperature == 27, ])
+boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS', data = ExROS.df2[ExROS.df2$Growth_temperature == 29, ])
+boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS', data = ExROS.df2[ExROS.df2$Growth_temperature == 31, ])
+#Except TP2/TP5@27°C and TP1@29°C homogeneity of variances looks ok
+
+#Check for significant differences between EE treatments at each temperature (using Tukey’s HSD) 
+tukey_hsd.ExROS27C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 27, ]) %>% 
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 27)
+
+tukey_hsd.ExROS29C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 29, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 29)
+
+tukey_hsd.ExROS31C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 31, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 31)
+
+#Combine outputs from Tukey'S HSD into a single df
+tukey_hsd.ExROS <- rbind(tukey_hsd.ExROS27C, tukey_hsd.ExROS29C) %>%
+  rbind(tukey_hsd.ExROS31C) %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature))
+```
+
+Test for significant differences between experimental evolution treatments (delta ExROS)
+```{r}
+#Check anova assumptions
+aov.Delta_ExROS <- aov(Delta_ExROS ~ EE_treatment,  data = ExROS.df3)
+qqnorm(aov.Delta_ExROS$residuals) #QQplots to check for normal distribution
+qqline(aov.Delta_ExROS$residuals)
+boxplot(Delta_ExROS ~ EE_treatment, xlab='EE_treatment', ylab='Delta_ExROS', data = ExROS.df3) #Boxplots to check for equal variance
+
+#Check for significant differences
+tukey_hsd.Delta_ExROS <- aov(Delta_ExROS ~ EE_treatment, data = ExROS.df3) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+```
+
+Plots of ExROS analyses
+```{r}
+#Plot ExROS
+ExROS.plot <- ExROS.df2 %>%
+  ggplot() +
+  geom_boxplot(aes(x = EE_treatment, y = ExROS_normalised, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.ExROS, label = "p.adj.signif",
+                     y.position = c(0.00014, 0.00023, 0.00026, 0.0002, 0.00028, 0.0003,
+                                    0.00028, 0.0003, 0.00035, 0.00037, 0.00039, 0.00041),
+                     tip.length = 0.01) +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
+  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_y_continuous(expression(bold(ExROS/cell)), limits = c(0, 0.00043), expand = c(0,0)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major.x = element_blank(),
+        panel.spacing = unit(1, "lines"),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE)
+ExROS.plot
+
+#Plot delta ExROS
+Delta_ExROS.plot <- ExROS.df3 %>%
+  ggplot() +
+  geom_boxplot(aes(x = EE_treatment, y = Delta_ExROS, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.Delta_ExROS, label = "p.adj.signif", y.position = c(0.00035, 0.00033, 0.00031), tip.length = 0.01) +
+  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_y_continuous(expression(bold(Δ~ExROS/cell)), limits = c(0, 0.00037), expand = c(0,0)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major.x = element_blank(),
+        panel.spacing = unit(1, "lines"),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE)
+Delta_ExROS.plot
+```
+
+Combine plots
+```{r}
+ExROS.plots <- cowplot::plot_grid(ExROS.plot + rremove('xlab'),
+                                 Delta_ExROS.plot + rremove('xlab'),
+                                 labels = c("C", "D"),
+                                 ncol = 2, align = "v",
+                                 axis = "b",
+                                 rel_widths = c(1, 0.5))
+ExROS.plots
+
+ExROS.plots.annot <- annotate_figure(ExROS.plots,
+                                     bottom = text_grob("Experimental evolution treatment",
+                                                        color = "black",
+                                                        face = "bold",
+                                                        size = 14))
+ExROS.plots.annot
+```
+
+Save plots
+```{r}
+ggsave(plot = ExROS.plots.annot, "TPA - ExROS plots.pdf", 
+       path = "./",
+       width = 10,
+       height = 5,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+```
+
+Export data
+```{r}
+ExROS.data_xl <- ExROS.df2 %>%
+  filter(Growth_temperature == 27 | Growth_temperature == 31) %>%
+  dplyr::select(Growth_temperature, Lineage, ExROS_normalised) %>%
+  distinct() %>%
+  arrange(by_group = Lineage) %>%
+  write_xlsx(path = "./TPA - ExROS analysis output.xlsx", 
+             col_names = TRUE, 
+             format_headers = TRUE)
+```

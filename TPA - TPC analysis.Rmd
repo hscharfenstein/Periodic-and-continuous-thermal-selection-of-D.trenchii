@@ -1,0 +1,1158 @@
+---
+title: "TPA - Growth rate and TPC modelling"
+author: "Hugo Scharfenstein"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+Load packages
+```{r}
+#Data import and export packages
+library(readxl)
+library(writexl)
+#Data wrangling packages
+library(tidyverse)
+library(broom)
+library(rstatix)
+#Packages for growth rates/TPCs 
+library(nlstools)
+library(rTPC)
+library(nls.multstart)
+library(MuMIn)
+library(nlsMicrobio)
+#Data visualisation packages
+library(SciViews)
+library(ggpubr)
+library(factoextra)
+```
+
+Import data
+```{r}
+#Optical density (OD) data from TPA
+TPA.df <- read_xlsx("./GCB dataset.xlsx", sheet = 3)
+
+#OD data for calibration curves
+CC.df <- read_xlsx("./GCB dataset.xlsx", sheet = 2)
+
+#Re-level nutrient treatments
+TPA.df$Growth_temperature <- ordered(TPA.df$Growth_temperature, levels = c('21', '23', '25', '27', '29', '31'))
+TPA.df$Nutrient_treatment <- ordered(TPA.df$Nutrient_treatment, levels = c('IMK', 'NO3_depleted'))
+
+#Prepare labels for plot facets
+nutrient.labs <- c("Nitrate replete", "Nitrate depleted")
+names(nutrient.labs) <- c('IMK', "NO3_depleted")
+growth.labs <- c("Growth cycle 1", "Growth cycle 2")
+names(growth.labs) <- c('1', "2")
+temperature.labs <- c('21°C', '23°C', '25°C', '27°C', '29°C', '31°C', '33°C')
+names(temperature.labs) <- c('21', '23', '25', '27', '29', '31', '33')
+```
+
+Calibration curves visualisation
+```{r}
+#In vivo fluorescence vs. cell density
+IVF.plot <- CC.df %>%
+  filter(Nutrient_treatment == "IMK") %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) %>%
+  ggplot(aes(y=CellD, x= IVF_680nm, colour = Growth_temperature)) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x, se = F, size = 1) +
+  scale_y_continuous("Cell density (cells/ml)", expand = c(0,0), breaks = 0:1200000*200000, limits = c(0,1200000),
+                     labels = scales::scientific) +
+  scale_x_continuous(expand = c(0,0), breaks = 0:800*200, limits = c(0,800)) +
+  scale_colour_manual(values = c("#313695", "#4575b4", "#abd9e9", "#000000", "#f46d43", "#d73027", "#a50026")) +
+  xlab(expression(italic("In vivo")~fluorescence~('680nm'))) +
+  stat_regline_equation(label.x = c(10,10,10,10, 10, 10, 10), 
+                        label.y = c(1150000,1100000,1050000,1000000, 950000, 900000, 850000),
+                        aes(label =  paste(..eq.label.., ..rr.label.., sep = "~~~~")), size=4) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(colour = guide_legend(title = "Temperature (°C)",override.aes = aes(label = "")))
+IVF.plot
+
+#Optical density at 670nm vs. cell density
+OD670.plot <- CC.df %>%
+  filter(Nutrient_treatment == "IMK") %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) %>%
+  ggplot(aes(y=CellD, x= OD_670nm, colour = Growth_temperature)) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x, se = F, size = 0.75, linetype='solid') +
+  scale_y_continuous("Cell density (cells/ml)", expand = c(0,0), breaks = 0:1200000*200000, limits = c(0,1200000),
+                     labels = scales::scientific) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,0.4)) +
+  scale_colour_manual(values = c("#313695", "#4575b4", "#abd9e9", "#000000", "#f46d43", "#d73027", "#a50026")) +
+  xlab(expression(Optical~density~('670nm'))) +
+  stat_regline_equation(label.x = c(0.01,0.01,0.01,0.01, 0.01, 0.01, 0.01), 
+                        label.y = c(1150000,1100000,1050000,1000000, 950000, 900000, 850000),
+                        aes(label =  paste(..eq.label.., ..rr.label.., sep = "~~~~")), size=4) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(colour = guide_legend(title = "Temperature (°C)",override.aes = aes(label = "")))
+OD670.plot
+
+#Optical density at 750nm vs. cell density
+OD750.plot <- CC.df %>%
+  filter(Nutrient_treatment == "IMK") %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) %>%
+  ggplot(aes(y=CellD, x= OD_750nm, colour = Growth_temperature)) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x, se = F, size = 0.75, linetype='solid') +
+  scale_y_continuous("Cell density (cells/ml)", expand = c(0,0), breaks = 0:1200000*200000, limits = c(0,1200000), labels = scales::scientific) +
+  scale_x_continuous(expand = c(0,0), limits = c(0,0.4)) +
+  scale_colour_manual(values = c("#313695", "#4575b4", "#abd9e9", "#000000", "#f46d43", "#d73027", "#a50026")) +
+  xlab(expression(Optical~density~('750nm'))) +
+  stat_regline_equation(label.x = c(0.01,0.01,0.01,0.01, 0.01, 0.01, 0.01), 
+                        label.y = c(1150000,1100000,1050000,1000000, 950000, 900000, 850000),
+                        aes(label =  paste(..eq.label.., ..rr.label.., sep = "~~~~")), size=4) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(colour = guide_legend(title = "Temperature (°C)",override.aes = aes(label = "")))
+OD750.plot
+
+#Combine the calibration curves
+CC.plots <- ggarrange(IVF.plot + rremove('ylab'),
+                     OD670.plot,
+                     OD750.plot + rremove('ylab'),
+                     common.legend = TRUE,
+                     legend = 'right',
+                     heights = c(4, 4,4),
+                     widths = c(0.5, 0.5, 0.5),
+                     align = "hv",
+                     ncol = 1) 
+CC.plots
+```
+
+Convert OD data to cell density measurements
+```{r}
+#Subtract IMK blank to OD_670nm values (accounts for OD of IMK and plate)
+TPA.df <- TPA.df %>%
+  group_by(Growth_cycle, Growth_temperature, Measurement_date) %>%
+  mutate(OD_670nm = OD_670nm-IMK_blank) %>%
+  ungroup()
+
+#Transform OD into cell density measurements using calibration curves specific to each temperature
+TPA.df <- TPA.df %>%
+  mutate(CellD=case_when(str_detect(Growth_temperature,"21") ~ 3500000*OD_670nm-79000,
+                         str_detect(Growth_temperature,"23") ~ 2800000*OD_670nm+12000,
+                         str_detect(Growth_temperature,"25") ~ 3500000*OD_670nm-47000,
+                         str_detect(Growth_temperature,"27") ~ 4300000*OD_670nm+320,
+                         str_detect(Growth_temperature,"29") ~ 3000000*OD_670nm-62000,
+                         str_detect(Growth_temperature,"31") ~ 2600000*OD_670nm+26000,
+                    ))
+```
+
+Visualise growth curves
+```{r}
+#Growth cuvres for IMK replete treatment
+GC.plot <- TPA.df %>%
+  filter(Nutrient_treatment == 'IMK') %>%
+  ggplot(aes(y = CellD, x = Time_day, colour = EE_treatment)) +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 21), aes(xintercept = 30), colour="black", size = 0.5, linetype = 'dashed') + 
+  geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 23), aes(xintercept = 26), colour="black", size = 0.5, linetype = 'dashed') + 
+  geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 25), aes(xintercept = 26), colour="black", size = 0.5, linetype = 'dashed') + 
+  geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 27), aes(xintercept = 24), colour="black", size = 0.5, linetype = 'dashed') + 
+  geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 29), aes(xintercept = 22), colour="black", size = 0.5, linetype = 'dashed') + 
+  geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 31), aes(xintercept = 18), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 21), aes(xintercept = 18), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 23), aes(xintercept = 14), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 25), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 27), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 29), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 31), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_hline(aes(yintercept = 100000), colour="grey", size = 0.5, linetype = 'solid') + 
+  geom_smooth(aes(fill = EE_treatment), method=mgcv::gam, formula = y~s(x, bs = "cs", k = 4), se=T, size=0.75, alpha = 0.25) +
+  geom_point(size=3, pch=20, shape=0) +
+  facet_grid(Growth_temperature ~ Growth_cycle, labeller = labeller(Growth_temperature=temperature.labs, Growth_cycle=growth.labs), scales = 'free_y') +
+  scale_x_continuous('Time (days)', breaks=0:52*8, expand =c(0,0),limits = c(0,52)) +
+  scale_y_continuous('Cell density (cells/ml)', limits = c(0,NA), labels = scales::scientific) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(#aspect.ratio = 10/40,
+        panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.spacing = unit(1, "lines"),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        strip.background.x = element_rect(size = 0, fill = "white"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 12, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        labs(colour = "Experimental evolution treatment") +
+        guides(fill = FALSE)
+GC.plot
+```
+
+Growth rate calculation
+
+Prepare data frames for growth model fitting
+```{r}
+#Growth cycle 1
+GC1.df <- TPA.df %>%
+  filter(Nutrient_treatment == 'IMK' & Growth_cycle == 1) %>%
+  filter(CellD > 0) %>%
+  mutate(log10CellD = log10(CellD))
+
+#Growth cycle 2
+GC2.df <- TPA.df %>%
+  filter(Nutrient_treatment == 'IMK' & Growth_cycle == 2) %>%
+  filter(Growth_temperature != 21 ) %>% #Remove t27 and t30 timepoints for TP3
+
+GC2_21C.df <- TPA.df %>%
+  filter(Nutrient_treatment == 'IMK' & Growth_cycle == 2 & Growth_temperature == 21) %>%
+  filter(!(EE_treatment == 'TP3' & Time_day %in% c(27, 30))) #Remove anomalous timepoints for TP3
+
+GC2.df <- rbind(GC2.df, GC2_21C.df) %>%
+  filter(CellD > 0) %>%
+  mutate(log10CellD = log10(CellD)) %>%
+  filter(log10CellD > 0)
+```
+
+Define the equations to be used for modelling of growth rates
+```{r}
+#Gompertz growth models
+gompertz_calc <- function(time, y0, mumax, K, lambda){
+y <- y0 + (K - y0) * exp(-exp(mumax * exp(1) * (lambda - time)/((K - y0) * log(10)) + 1))
+}
+
+#Buchanan growth models (with and without lag phase as a parameter)
+buchanan_calc <- function(time, y0, mumax, K, lambda){
+y <- y0 + (time >= lambda) * (time <= (lambda + (K - y0) * log(10)/mumax)) * mumax * (time - lambda)/log(10) + (time >= lambda) * (time > (lambda + (K - y0) * log(10)/mumax)) * (K - y0)
+}
+
+buchanan_calc_no_lag <- function(time, y0, mumax, K){
+y <- y0 + (time <= ((K - y0) * log(10)/mumax)) * mumax * time/log(10) + (time > ((K - y0) * log(10)/mumax)) *  (K - y0)
+}
+
+#Baranyi growth models (with and without lag phase and without carrying capacity as parameters)
+baranyi_calc <- function(time, y0, mumax, K, lambda){
+y <- K + log10((-1 + exp(mumax * lambda) + exp(mumax * time))/(exp(mumax * time) - 1 + exp(mumax * lambda) * 10^(K - y0)))
+}
+
+baranyi_calc_no_lag <- function(time, y0, mumax, K){
+y <- K - log10(1 + (10^(K - y0) - 1) * exp(-mumax * time))
+}
+
+baranyi_calc_no_K <- function(time, y0, mumax, lambda){
+y <- y0 + mumax * time/log(10) + log10(exp(-mumax * time) * (1 - exp(-mumax * lambda)) + exp(-mumax * lambda))
+}
+#Equations were obtained from: https://github.com/padpadpadpad/Padfield_2019_ISME_bact_phage_temperature/blob/master/scripts/growth_curve_models.R
+```
+
+Define the starting parameters
+```{r}
+#Starting cell density (y0)
+y0 <- GC2.df %>% 
+  group_by(Growth_temperature, Lineage) %>% 
+  filter(Time_day == min(Time_day)) %>% 
+  ungroup() %>%
+  mutate(y0_min = min(log10CellD)) %>%
+  mutate(y0_max = max(log10CellD)) %>% 
+  select(y0_min, y0_max) %>% 
+  distinct()
+
+#Maximum cell density (carrying capacity; K)
+K <- GC2.df %>% 
+  group_by(Growth_temperature, Lineage) %>% 
+  filter(Time_day == max(Time_day)) %>% 
+  ungroup() %>%
+  mutate(K_min = min(log10CellD)) %>%
+  mutate(K_max = max(log10CellD)) %>% 
+  select(K_min, K_max) %>% 
+  distinct()
+```
+
+Option 1: parametric nonlinear growth model fitting using nls.multstart
+```{r}
+#Fit various growth models
+GrowthR.nls_fits <- GC2.df %>%
+  select(Growth_temperature, EE_treatment, Lineage, Time_day, log10CellD) %>%
+  group_by(Growth_temperature, EE_treatment, Time_day) %>%
+  mutate(sd_log10CellD = sd(log10CellD)) %>%
+  ungroup() %>%
+  group_by(Growth_temperature, EE_treatment, Lineage) %>%
+  nest(data = c(Time_day, log10CellD, sd_log10CellD)) %>%
+  mutate(gompertz = map(data, ~ nls_multstart(log10CellD ~ gompertz_calc(time = Time_day, y0, mumax, K, lambda),
+                     data = .x,
+                     iter = 250,
+                     start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min, lambda = 1), #Adjust starting params here
+                     start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max, lambda = 18), #Adjust starting params here
+                     supp_errors = 'Y',
+                     convergence_count = 100,
+                     lower = c(y0 = log10(10000), mumax = -0.2, K = log10(10000), lambda = 0), #Adjust lower boundaries here
+                     upper = c(y0 = log10(200000), mumax = 0.4, K = log10(2000000), lambda = 30), #Adjust upper boundaries here
+                     na.action = na.omit,
+                     modelweights = 1/sd_log10CellD)),
+         buchanan = map(data, ~ nls_multstart(log10CellD ~ buchanan_calc(time = Time_day, y0, mumax, K, lambda),
+                     data = .x,
+                     iter = 250,
+                     start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min, lambda = 1), #Adjust starting params here
+                     start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max, lambda = 18), #Adjust starting params here
+                     supp_errors = 'Y',
+                     convergence_count = 100,
+                     lower = c(y0 = log10(10000), mumax = -0.2, K = log10(10000), lambda = 0), #Adjust lower boundaries here
+                     upper = c(y0 = log10(200000), mumax = 0.4, K = log10(2000000), lambda = 30), #Adjust upper boundaries here
+                     na.action = na.omit,
+                     modelweights = 1/sd_log10CellD)),
+  buchanan_no_lag = map(data, ~ nls_multstart(log10CellD ~ buchanan_calc_no_lag(time = Time_day, y0, mumax, K),
+                     data = .x,
+                     iter = 250,
+                     start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min), #Adjust starting params here
+                     start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max), #Adjust starting params here
+                     supp_errors = 'Y',
+                     convergence_count = 100,
+                     lower = c(y0 = log10(10000), mumax = -0.2, K = log10(10000)), #Adjust lower boundaries here
+                     upper = c(y0 = log10(200000), mumax = 0.4, K = log10(2000000)), #Adjust upper boundaries here
+                     na.action = na.omit,
+                     modelweights = 1/sd_log10CellD)),
+         baranyi = map(data, ~ nls_multstart(log10CellD ~ baranyi_calc(time = Time_day, y0, mumax, K, lambda),
+                     data = .x,
+                     iter = 250,
+                     start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min, lambda =1), #Adjust starting params here
+                     start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max, lambda = 18), #Adjust starting params here
+                     supp_errors = 'Y',
+                     convergence_count = 100,
+                     lower = c(y0 = log10(10000), mumax = -0.2, K = log10(10000), lambda = 0), #Adjust lower boundaries here
+                     upper = c(y0 = log10(200000), mumax = 0.4, K = log10(2000000), lambda = 30), #Adjust upper boundaries here
+                     na.action = na.omit,
+                     modelweights = 1/sd_log10CellD)),
+    baranyi_no_K = map(data, ~ nls_multstart(log10CellD ~ baranyi_calc_no_K(time = Time_day, y0, mumax, lambda),
+                     data = .x,
+                     iter = 250,
+                     start_lower = c(y0 = y0$y0_min, mumax = -0.15, lambda =1), #Adjust starting params here
+                     start_upper = c(y0 = y0$y0_max, mumax = 0.3, lambda = 18), #Adjust starting params here
+                     supp_errors = 'Y',
+                     convergence_count = 100,
+                     lower = c(y0 = log10(10000), mumax = -0.2, lambda = 0), #Adjust lower boundaries here
+                     upper = c(y0 = log10(200000), mumax = 0.4, lambda = 30), #Adjust upper boundaries here
+                     na.action = na.omit,
+                     modelweights = 1/sd_log10CellD)),
+  baranyi_no_lag = map(data, ~ nls_multstart(log10CellD ~ baranyi_calc_no_lag(time = Time_day, y0, mumax, K),
+                     data = .x,
+                     iter = 250,
+                     start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min), #Adjust starting params here
+                     start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max), #Adjust starting params here
+                     supp_errors = 'Y',
+                     convergence_count = 100,
+                     lower = c(y0 = log10(10000), mumax = -0.2, K = log10(10000)), #Adjust lower boundaries here
+                     upper = c(y0 = log10(200000), mumax = 0.4, K = log10(2000000)), #Adjust upper boundaries here
+                     na.action = na.omit,
+                     modelweights = 1/sd_log10CellD))) %>%
+  ungroup()
+
+#Stack different model fits to the same column
+GrowthR.nls_stack <- select(GrowthR.nls_fits, -data) %>%
+  pivot_longer(., names_to = 'model_name', values_to = 'fit', gompertz:baranyi_no_lag) 
+
+#Retrieve model fit information
+GrowthR.nls_info <- GrowthR.nls_stack %>%
+  filter(fit != 'NULL') %>%
+  mutate(., summary = map(fit, glance),
+         AICc =  map_dbl(fit, MuMIn::AICc)) %>%
+  dplyr::select(-fit) %>%
+  unnest(summary)
+
+#Retrieve model fit parameters
+GrowthR.nls_params <- GrowthR.nls_stack %>%
+  mutate(params = map(fit, tidy)) %>%
+  unnest(params)
+
+#Get confidence intervals for parameters
+GrowthR.nls_CI <- GrowthR.nls_stack %>%
+  filter(fit != 'NULL') %>%
+  mutate(cis = map(fit, confint2),
+         cis = map(cis, data.frame),
+         cis = map(cis, rownames_to_column)) %>%
+  unnest(cis) %>%
+  rename(term = rowname, conf.low = X2.5.., conf.high = X97.5..) %>%
+  select(-fit)
+
+#Merge confidence intervals with parameters
+GrowthR.nls_CI_PMS <- merge(GrowthR.nls_params, GrowthR.nls_CI, by = intersect(names(GrowthR.nls_params), names(GrowthR.nls_CI)))
+
+#Get predictions 
+GrowthR.nls_npreds <- tibble(Time_day = seq(min(GC2.df$Time_day), max(GC2.df$Time_day), length.out = 200))
+GrowthR.nls_npreds_max_min <- GC2.df %>%
+  group_by(Growth_temperature, Lineage) %>%
+  summarise(., min_Time_day = min(Time_day), max_Time_day = max(Time_day)) %>%
+  ungroup()
+
+#Augment predictions using fits
+GrowthR.nls_preds <- GrowthR.nls_stack %>%
+  filter(fit != 'NULL') %>%
+  group_by(Growth_temperature, Lineage, model_name) %>%
+  mutate(p = map(fit, augment, newdata = GrowthR.nls_npreds)) %>%
+  unnest(p) %>%
+  ungroup() %>%
+  merge(., GrowthR.nls_npreds_max_min, by = c('Growth_temperature', 'Lineage')) %>%
+  group_by(Growth_temperature, Lineage) %>%
+  filter(., Time_day > unique(min_Time_day) & Time_day < unique(max_Time_day)) %>%
+  mutate(prediction_id = cur_group_id()) %>%
+  select(-fit)
+
+#Visualise fits and parameter estimates
+GrowthR.nls_fit_plot <- GrowthR.nls_preds %>%
+  ggplot() +
+  geom_line(aes(Time_day, .fitted, group = prediction_id, colour = model_name), alpha = 0.5) +
+  geom_point(aes(Time_day, log10(CellD)), size = 1.5, shape = 21, fill = "black", alpha = 0.1, data = GC2.df) +
+  facet_wrap(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs), ncol = 2) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size = 14, face="bold"),
+        strip.text.y=element_text(size = 14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "right", 
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+    labs(x = "Time (days)", y = "Log10 Cell density", colour = "Model")
+GrowthR.nls_fit_plot
+
+GrowthR.nls_params_plot <- GrowthR.nls_CI_PMS %>%
+  filter(term == 'mumax') %>%
+  ggplot(aes(col = model_name), position_dodge(width = 1)) +
+  geom_point(aes(Lineage, estimate), size = 1.5) +
+  geom_linerange(aes(Lineage, ymin = conf.low, ymax = conf.high)) +
+  facet_wrap(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs), ncol = 2) +
+  scale_y_continuous(limits = c(-0.2, 0.4)) +
+  coord_flip() +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "right", 
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  labs(x = 'Lineage', y = 'Parameter estimate (µmax)', colour = 'Model')
+GrowthR.nls_params_plot
+#Baranyi, baranyi_no_lag and gompertz models provide poor mumax estimates, especially at 21 and 31°C
+
+#Select best model fits based on smallest CI or AIC scores
+GrowthR.nls_df <- merge(GrowthR.nls_CI_PMS, GrowthR.nls_info, 
+                          by = intersect(names(GrowthR.nls_CI_PMS), 
+                                         names(GrowthR.nls_info))) %>%
+  group_by(Growth_temperature, Lineage, term) %>%
+  mutate(conf = conf.high - conf.low) %>%
+  filter(term == 'mumax') %>%
+  filter(!(model_name %in% c('baranyi', 'baranyi_no_lag', 'gompertz'))) %>% #Remove these models, they provided erroneous mumax estimates 
+  filter(AICc - min(AICc) <= 2) %>% #Only keep models within Δ2 AIC of the lowest score
+  filter(conf == min(conf)) %>% #Keep model that provides best CI for the parameter of interest (mumax)
+  ungroup()
+
+#Check which model is best fit according to previous filtering criteria
+GrowthR.nls_best_model <- GrowthR.nls_df %>%
+  dplyr::select(Growth_temperature, model_name, Lineage, estimate) %>%
+  ungroup() %>%
+  count(model_name) #Buchanan_no_lag overwhelmingly provides fit
+
+GrowthR.df <- merge(GrowthR.nls_CI_PMS, GrowthR.nls_info, 
+                          by = intersect(names(GrowthR.nls_CI_PMS), 
+                                         names(GrowthR.nls_info))) %>%
+  filter(term == 'mumax') %>%
+  filter(model_name == 'buchanan_no_lag') %>%
+  select(Growth_temperature, EE_treatment, Lineage, estimate) %>%
+  rename(mumax = estimate) %>%
+  group_by(Growth_temperature, EE_treatment) %>%
+  mutate(ave_mumax = mean(mumax)) %>%
+  mutate(sd_mumax = sd(mumax)) %>%
+  ungroup() 
+```
+
+Option 2: two point calculation of growth rates
+```{r}
+GrowthR_twop.df <- GC2.df %>%
+  group_by(Growth_temperature, Lineage) %>%
+  mutate(Tstart = min(Time_day)) %>%
+  mutate(Tend = max(Time_day)) %>%
+  mutate(Timepoint = case_when(Time_day == min(Time_day) ~ 'start',
+                               Time_day == max(Time_day) ~ 'end')) %>%
+  na.omit() %>%
+  mutate(mumax = (ln(CellD[Timepoint == 'end']) - ln(CellD[Timepoint == 'start']))/(Tend - Tstart)) %>%
+  select(Growth_temperature, EE_treatment, Lineage, mumax) %>%
+  distinct() %>%
+  ungroup() %>%
+  group_by(Growth_temperature, EE_treatment) %>%
+  mutate(ave_mumax = mean(mumax)) %>%
+  mutate(sd_mumax = sd(mumax)) %>%
+  mutate(Model = 'twopoint')
+```
+
+Visualise growth rates
+```{r}
+GrowthR.plot <- GrowthR.df %>% #Change this to 'GrowthR_twop.df' to compare mumax from model fitting and two point calculation
+  mutate(Growth_temperature = as.numeric(as.character(Growth_temperature))) %>%
+  ggplot(aes(x = Growth_temperature, y = ave_mumax, fill = EE_treatment, colour = EE_treatment)) +
+  geom_linerange(aes(x = Growth_temperature, ymin = ave_mumax-sd_mumax, ymax = ave_mumax+sd_mumax), position=position_dodge(width = 1)) +
+  geom_point(position=position_dodge(width = 1), size = 1.5, pch = 20, shape = 0) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  scale_x_continuous('Temperature (ºC)', expand =c(0,0),limits = c(20,32)) +
+  scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA, NA)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        strip.text.x=element_text(size = 14, face="bold"),
+        strip.text.y=element_text(size = 14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        labs(colour = "Experimental evolution treatment") +
+        guides(fill = FALSE)
+GrowthR.plot
+```
+
+Thermal performance curve (TPC) fitting
+
+Fit TPCs to each lineage using previously calculated growth rates
+```{r}
+#Prepare df for TPC fitting
+TPC.df <- GrowthR.df %>%
+  mutate(Growth_temperature = as.numeric(as.character(Growth_temperature))) %>%
+  arrange(Growth_temperature) %>%
+  group_by(Growth_temperature, EE_treatment) %>%
+  ungroup() %>%
+  dplyr::select(Growth_temperature, EE_treatment, Lineage, mumax, ave_mumax, sd_mumax)
+  
+#Fit TPCs to each lineage using multiple models 
+TPC.fits <- TPC.df %>%
+  dplyr::select(!ave_mumax) %>%
+  group_by(Lineage) %>%
+  nest(data = c(Growth_temperature, mumax, sd_mumax)) %>%
+  mutate(thomas2017 = map(data, ~nls_multstart(mumax~thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+                        data = .x,
+                        iter = c(3,3,3,3,3),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax),
+         thomas2012 = map(data, ~nls_multstart(mumax~thomas_2012(temp = Growth_temperature, a, b, c, topt),
+                        data = .x,
+                        iter = c(4,4,4,4),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2012') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2012') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2012'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2012'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax),
+         lactin = map(data, ~nls_multstart(mumax~lactin2_1995(temp = Growth_temperature, a, b, tmax, delta_t),
+                        data = .x,
+                        iter = c(4,4,4,4),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'lactin2_1995') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'lactin2_1995') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'lactin2_1995'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'lactin2_1995'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax),
+         kamykowski = map(data, ~nls_multstart(mumax~kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
+                        data = .x,
+                        iter = c(3,3,3,3,3),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax),
+         joehnk = map(data, ~nls_multstart(mumax~joehnk_2008(temp = Growth_temperature, rmax, topt, a, b , c),
+                        data = .x,
+                        iter = c(4,4,4,4,4),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax))
+
+
+#Stack models
+GrowthR.stack <- dplyr::select(TPC.fits, -data) %>%
+  pivot_longer(., names_to = 'model_name', values_to = 'fit', thomas2017:joehnk)
+
+#Get parameters provided by models
+GrowthR.params_model <- GrowthR.stack %>%
+  mutate(., est = map(fit, tidy)) %>%
+  dplyr::select(-fit) %>%
+  unnest(est)
+
+#Get predictions using augment
+GrowthR.newdata <- tibble(Growth_temperature = seq(min(TPC.df$Growth_temperature), max(TPC.df$Growth_temperature), length.out = 42))
+GrowthR.preds_mult <- GrowthR.stack %>%
+  mutate(., rate_preds = map(fit, augment, newdata = GrowthR.newdata)) %>%
+  dplyr::select(-fit) %>%
+  unnest(rate_preds)
+
+#Visualize TPCs
+TPC.plot <- GrowthR.preds_mult %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  ggplot(aes()) +
+  geom_point(aes(Growth_temperature, mumax), TPC.df, size = 1.5, pch = 20, shape = 0) +
+  geom_line(aes(Growth_temperature, .fitted, colour = model_name)) +
+  facet_wrap(.~Lineage, ncol = 6) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  theme_bw() +
+  scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
+  scale_y_continuous(expression(bold(Growth~rate~(d^-1))), limits = c(NA,NA)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "right",
+        title = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  labs(title = 'Thermal performance curves', colour = "Model") +
+  guides(fill = FALSE)
+TPC.plot
+#All models provide very similar fits, except kamykowski for TP4_1,2,3 & 5 (maybe exclude this model as it could lead to overestimation of Topt)
+```
+
+TPC model selection
+```{r}
+#Calculate measures of relative model fit (AIC, BIC, AICc)
+GrowthR.ic <- GrowthR.stack %>%
+  mutate(., info = map(fit, glance),
+         AICc =  map_dbl(fit, MuMIn::AICc)) %>%
+  dplyr::select(-fit) %>%
+  unnest(info) %>%
+  dplyr::select(model_name, sigma, AIC, AICc, BIC, df.residual)
+
+#Filter for best model fit
+GrowthR.best_model <- GrowthR.ic %>%
+  filter(AICc == min(AICc)) %>% 
+  dplyr::select(Lineage, model_name) %>%
+  ungroup() %>%
+  dplyr::select(-Lineage) %>%
+  count(model_name)
+#No obvious distinction of model per EE_treatment
+#Thomas2017 and kamykowski models appear to provide best fits - proceed with thomas2017 as kamykowski provided strange fits for some TP4 lineages
+
+#Code for model averaging, originally explored but not kept
+#Calculate average of models
+#GrowthR.ic_ave <- GrowthR.ic %>%
+  #filter(model_name %in% c('thomas2017', 'joehnk')) %>%
+  #filter(AICc - min(AICc) <= 2) %>% #Filter out model averages which are less than Δ2AICc of the best model
+  #mutate(., weight = MuMIn::Weights(AICc))
+
+#dplyr::select(GrowthR.ic_ave, Lineage, model_name, weight) %>%
+  #arrange(., desc(weight))
+
+#GrowthR.ave_preds <- left_join(GrowthR.preds_mult, dplyr::select(GrowthR.ic_ave, Lineage, model_name, weight)) %>%
+  #na.omit() %>% #Keeps the best model fit when the model average wasn't above Δ2AIC
+  #group_by(Lineage,Growth_temperature) %>%
+  #summarise(., .fitted = sum(.fitted*weight)) %>%
+  #ungroup() %>%
+  #mutate(model_name = 'model average') %>%
+  #mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
+                                  #str_detect(Lineage, 'TP2') ~ 'TP2',
+                                  #str_detect(Lineage, 'TP3') ~ 'TP3',
+                                  #str_detect(Lineage, 'TP4') ~ 'TP4',
+                                  #str_detect(Lineage, 'TP5') ~ 'TP5'))
+
+#Estimate parameters from models
+#GrowthR.params <- GrowthR.stack %>%
+  #mutate(., params = map(fit, calc_params)) %>%
+  #dplyr::select(-fit) %>%
+  #unnest(params)
+
+#Get averaged parameters based on previously calculated model weights
+#GrowthR.params_ave <- left_join(GrowthR.params,  dplyr::select(GrowthR.ic_ave, Lineage, model_name, weight)) %>%
+  #dplyr::select(!c(eh, q10, skewness)) %>%
+  #na.omit() %>%
+  #group_by(Lineage) %>%
+  #summarise(., across(rmax:breadth, function(x){sum(x*weight)})) %>%
+  #mutate(model_name = 'model average') %>%
+  #mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
+                                  #str_detect(Lineage, 'TP2') ~ 'TP2',
+                                  #str_detect(Lineage, 'TP3') ~ 'TP3',
+                                  #str_detect(Lineage, 'TP4') ~ 'TP4',
+                                  #str_detect(Lineage, 'TP5') ~ 'TP5'))
+```
+
+TPC visualisation
+```{r}
+#TPCs plot - by treatment (visualisation purposes)
+TPC.treat_plot <- GrowthR.preds_mult %>%
+  filter(model_name == 'thomas2017') %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  mutate(ave.fitted = mean(.fitted)) %>%
+  mutate(sd.fitted = sd(.fitted)) %>%
+  select(EE_treatment, Growth_temperature, ave.fitted, sd.fitted) %>%
+  distinct() %>%
+  ggplot(aes(x = Growth_temperature, y = ave.fitted, group = EE_treatment)) +
+  geom_line(aes(colour = EE_treatment)) +
+  geom_ribbon(aes(fill = EE_treatment, ymin = ave.fitted-sd.fitted, ymax = ave.fitted+sd.fitted), alpha = 0.25) +
+  geom_point(aes(x = Growth_temperature, y = mumax, colour = EE_treatment), TPC.df, size = 1.5, pch = 20, shape = 0) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 3), expand =c(0,0), limits = c(20,32)) +
+  scale_y_continuous(expression(bold(Growth~rate~(d^-1))), limits = c(NA,NA)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  labs(colour = 'Experimental evolution treatment') +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size = 14, face="bold"),
+        strip.text.y=element_text(size = 14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black",  face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE)
+TPC.treat_plot
+
+#TPCs plot - by lineage
+TPC.lin_plot <- GrowthR.preds_mult %>%
+  filter(model_name == 'thomas2017') %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  ggplot(aes()) +
+  geom_point(aes(Growth_temperature, mumax), TPC.df, size = 1.5, pch = 20, shape = 0) +
+  geom_line(aes(Growth_temperature, .fitted, colour = EE_treatment)) +
+  facet_wrap(.~Lineage, ncol = 6) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  theme_bw() +
+  scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
+  scale_y_continuous(expression(bold(Growth~rate~(d^-1))), limits = c(NA,NA)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size = 14, face="bold"),
+        strip.text.y=element_text(size = 14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "right",
+        title = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = F, colour = F)
+TPC.lin_plot
+```
+
+Extract parameters of interest from model average
+```{r}
+#Estimate parameters from models
+GrowthR.params <- GrowthR.stack %>%
+  filter(model_name == 'thomas2017') %>%
+  mutate(., params = map(fit, calc_params)) %>%
+  dplyr::select(-c(model_name, fit)) %>%
+  unnest(params)
+```
+
+Test for significant differences between experimental evolution treatments
+```{r}
+#Check anova assumptions (QQplots to check for normal distribution)
+aov.topt <- aov(topt ~ EE_treatment, data = GrowthR.params)
+qqnorm(aov.topt$residuals) 
+qqline(aov.topt$residuals)
+
+aov.rmax <- aov(rmax ~ EE_treatment, data = GrowthR.params)
+qqnorm(aov.rmax$residuals) 
+qqline(aov.rmax$residuals)
+
+aov.ctmax <- aov(ctmax ~ EE_treatment, data = GrowthR.params)
+qqnorm(aov.ctmax$residuals) 
+qqline(aov.ctmax$residuals)
+
+aov.ctmin <- aov(ctmin ~ EE_treatment, data = GrowthR.params[GrowthR.params$Lineage != 'TP1_6', ])
+qqnorm(aov.ctmin$residuals) 
+qqline(aov.ctmin$residuals)
+
+aov.tbr <- aov(breadth ~ EE_treatment, data = GrowthR.params)
+qqnorm(aov.tbr$residuals) 
+qqline(aov.tbr$residuals)
+
+aov.tsm <- aov(thermal_safety_margin ~ EE_treatment, data = GrowthR.params)
+qqnorm(aov.tsm$residuals) 
+qqline(aov.tsm$residuals)
+
+#Check anova assumptions (boxplots to check for equal variance)
+boxplot(topt ~ EE_treatment, xlab='EE_treatment', ylab='Topt', data = GrowthR.params)
+boxplot(rmax ~ EE_treatment, xlab='EE_treatment', ylab='rmax', data = GrowthR.params)
+boxplot(ctmax ~ EE_treatment, xlab='EE_treatment', ylab='CTmax', data = GrowthR.params)
+boxplot(ctmin ~ EE_treatment, xlab='EE_treatment', ylab='CTmin', data = GrowthR.params[GrowthR.params$Lineage != 'TP1_6', ])
+boxplot(breadth ~ EE_treatment, xlab='EE_treatment', ylab='Tbr', data = GrowthR.params)
+boxplot(thermal_safety_margin ~ EE_treatment, xlab='EE_treatment', ylab='TSM', data = GrowthR.params)
+
+#Check for significant differences between EE treatments for parameters of interest (using Tukey’s HSD)
+tukey_hsd.topt <- aov(topt ~ EE_treatment, data = GrowthR.params) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.rmax <- aov(rmax ~ EE_treatment, data = GrowthR.params) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.ctmax <- aov(ctmax ~ EE_treatment, data = GrowthR.params) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.ctmin <- aov(ctmin ~ EE_treatment, data = GrowthR.params[GrowthR.params$Lineage != 'TP1_6', ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.tbr <- aov(breadth ~ EE_treatment, data = GrowthR.params) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.tsm <- aov(thermal_safety_margin ~ EE_treatment, data = GrowthR.params) %>% 
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+```
+
+Plots of parameters of interest
+```{r}
+Topt.plot <- GrowthR.params %>%
+  ggplot() +
+  geom_boxplot(aes(EE_treatment, y = topt, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.topt, label = "p.adj.signif", y.position = c(28.55, 28.75, 28.95), tip.length = 0.01) +
+  scale_y_continuous(expression(bold(T[opt]~(ºC))), expand =c(0,0), limits = c(25, 29.1)) +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+Topt.plot
+
+rmax.plot <- GrowthR.params %>%
+  ggplot() +
+  geom_boxplot(aes(EE_treatment, y = rmax, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.rmax, label = "p.adj.signif", y.position = c(0.149, 0.151, 0.141, 0.143, 0.145, 0.147),
+                     tip.length = 0.01) +
+  scale_y_continuous(expression(bold(r[max]~(day^-1))), expand =c(0,0), limits = c(0.1, 0.153)) +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+rmax.plot
+
+CTmax.plot <- GrowthR.params %>%
+  ggplot() +
+  geom_boxplot(aes(x = EE_treatment, y = ctmax, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.ctmax, label = "p.adj.signif", y.position = c(31.1), tip.length = 0.01) +
+  scale_y_continuous(expression(bold(CT[max]~(ºC))), expand =c(0,0), limits = c(30.2, 31.2)) +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+CTmax.plot
+
+CTmin.plot <- GrowthR.params %>%
+  ggplot() +
+  geom_boxplot(aes(EE_treatment, y = ctmin, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.ctmin, label = "p.adj.signif", y.position = c(21.2, 22.7, 23, 23.3, 22.4, 22.2, 21.2), tip.length = 0.01) +
+  scale_y_continuous(expression(bold(CT[min]~(ºC))), expand =c(0,0), limits = c(14, 24)) +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+CTmin.plot
+
+Tbr.plot <- GrowthR.params %>%
+  ggplot() +
+  geom_boxplot(aes(EE_treatment, y = breadth, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.tbr, label = "p.adj.signif", y.position = c(6.8, 7, 7.2, 7.4, 5.7, 5.9), tip.length = 0.01) +
+  scale_y_continuous(expression(bold(T[br]~(ºC))), expand =c(0,0), limits = c(3.5, 7.7)) +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+Tbr.plot
+
+TSM.plot <- GrowthR.params %>%
+  ggplot() +
+  stat_pvalue_manual(tukey_hsd.tsm, label = "p.adj.signif", y.position = c(5.6, 6, 5.4, 5.2, 5.8), tip.length = 0.01) +
+  geom_boxplot(aes(EE_treatment, y = thermal_safety_margin, fill = EE_treatment)) +
+  scale_y_continuous(expression(bold(TSM~(ºC))), expand =c(0,0), limits = c(1.5, 6.2)) +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+TSM.plot
+```
+
+PCA of TPC params
+```{r}
+#Prepare matrix and metdata for PCA
+PCA.matrix <- GrowthR.params %>%
+  dplyr::select(-c(EE_treatment, e,eh, q10,  thermal_tolerance, skewness)) %>%
+  filter(Lineage != 'TP1_6') %>%
+  rename("Topt" = "topt", "CTmin" = "ctmin", "CTmax" = "ctmax", "TSM" = "thermal_safety_margin", "Tbr" = "breadth") %>%
+  column_to_rownames(var = "Lineage")
+
+PCA.groups <- GrowthR.params %>% filter(Lineage != 'TP1_6') %>% pull(EE_treatment)
+
+#PCA
+PCA.tpc <- prcomp(PCA.matrix, scale = T)
+
+#Plot
+PCA.tpc_biplot <- fviz_pca_biplot(PCA.tpc, repel = TRUE,
+                             geom.ind = "point", pointshape=19, pointsize = 1.5, mean.point = FALSE,
+                             fill.ind = PCA.groups, col.ind = PCA.groups, 
+                             palette = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                             alpha.var ="contrib",  col.var = "black",
+                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
+  labs(title = "", x = "PC1: 40%", y = "PC2: 34.6%") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        title = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = F,alpha = F,
+         shape = guide_legend(title = "Temperature (°C)"),
+         color = guide_legend(title = "Experimental evolution treatment", override.aes = list(linetype = 0, fill = "white")))
+PCA.tpc_biplot
+```
+
+Combine all TPC plots
+```{r}
+TPC_params.plots <- ggarrange(Topt.plot + rremove("xlab"),
+                             CTmax.plot + rremove("xlab"),
+                             Tbr.plot + rremove("xlab"),
+                             TSM.plot + rremove("xlab"),
+                             CTmin.plot + rremove("xlab"),
+                             rmax.plot + rremove("xlab"),
+                             legend = "none",
+                             labels = c("B", "C", "D", "E", "F", "G"),
+                             heights = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2),
+                             widths = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2),
+                             nrow = 3,
+                             ncol = 2,
+                             align = "v") 
+TPC_params.plots
+
+TPC_PCA.plots <-  ggarrange(TPC.treat_plot,
+                            PCA.tpc_biplot,
+                            common.legend = T,
+                            labels = c("A", "H"),
+                            heights = c(1, 1),
+                            widths = c(0.5, 0.5),
+                            ncol = 1,
+                            align = "v")                            
+TPC_PCA.plots
+
+TPC.plots <- ggarrange(TPC_PCA.plots,
+                       TPC_params.plots,
+                       heights = c(1, 1),
+                       widths = c(1, 0.5),
+                       ncol = 2,
+                       align = "hv")
+TPC.plots
+
+TPC.plots_annot <- annotate_figure(TPC.plots,
+                                   bottom = text_grob("Experimental evolution treatment", color = "black", face = "bold", size = 14,
+                                                        hjust = 1, x = 0.95))
+TPC.plots_annot
+```
+
+Save plots
+```{r}
+#Calibration curves
+ggsave(plot = CC.plots, "TPA - OD vs CellD calibration curves.pdf",
+       path = "./", 
+       width = 10,
+       height = 15, 
+       units = 'in', 
+       dpi = 300)
+
+#Growth curves
+ggsave(plot = GCplot, "TPA - growth curves.pdf",
+       path = "./", 
+       width = 12.5,
+       height = 10,
+       units='in',
+       dpi=300)
+
+#Growth rate model parameters
+ggsave(plot = GrowthR.nls_params_plot, "TPA - mumax estimates.pdf", 
+       path = "./", 
+       width = 10,
+       height = 15,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+
+#TPCs by treatment
+ggsave(plot = TPCplot, "TPA - TPCs all models.pdf", 
+       path = "./", 
+       width=10,
+       height=10,
+       units='in',
+       dpi=300)
+
+#TPCs by lineages
+ggsave(plot = TPC.lin_plot, "TPA - TPCs by lineage.pdf", 
+       path = "./", 
+       width=10,
+       height=10,
+       units='in',
+       dpi=300)
+
+#All TPC plots combined
+ggsave(plot = TPC.plots_annot, "TPA - all TPC plots.pdf", 
+       path = "./", 
+       width = 15,
+       height = 12.5,
+       units = 'in',
+       dpi = 300)
+```
+
+Export data
+```{r}
+TPC.data_xl <- GrowthR.params %>%
+  dplyr::select(Lineage, rmax, topt, ctmin, ctmax, thermal_safety_margin, breadth) %>%
+  write_xlsx(path = "./TPA - TPC output.xlsx", 
+             col_names = TRUE, 
+             format_headers = TRUE)
+
+GrowthR.data_xl <- GrowthR.df %>%
+  filter(Growth_temperature == 27 | Growth_temperature == 31) %>%
+  dplyr::select(Growth_temperature, Lineage, mumax) %>%
+  distinct() %>%
+  mutate(Lineage = str_replace(Lineage, "_", "-")) %>%
+  arrange(by_group = Lineage) %>%
+  write_xlsx(path = "./TPA - GrowthR output.xlsx", 
+             col_names = TRUE, 
+             format_headers = TRUE)
+```
