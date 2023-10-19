@@ -1,0 +1,808 @@
+---
+title: "TPA - P:R analysis"
+author: "Hugo Scharfenstein"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Load packages
+```{r}
+#Data import and export packages
+library(readxl)
+library(writexl)
+#Data wrangling packages
+library(tidyverse)
+#Respiration analysis package
+library(respR)
+```
+
+Import data
+```{r}
+#Import raw O2 progression data into R
+PR.df <- read_xlsx("./GCB dataset.xlsx", sheet = 7) %>%
+  mutate(phase = Phase) %>%
+  mutate(time = Time_seconds) %>%
+  mutate(oxygen = O2) %>%
+  filter(time > 10 ) %>% #The first 10 seconds are filtered out due to O2 values adjusting after starting measurements
+  select(Growth_temperature, EE_treatment, Run, Chamber, Lineage, Replicate, phase, time, oxygen)
+
+#Analyse one temperature at a time
+PR.df <- PR.df %>%
+  filter(Growth_temperature == 21) #Change temperature here to toggle between data sets
+
+#Prepare labels for plot facets
+growth.labs <- c("Growth cycle 1", "Growth cycle 2")
+names(growth.labs) <- c('1', "2")
+temperature.labs <- c('21°C', '23°C', '25°C', '27°C', '29°C', '31°C', '33°C')
+names(temperature.labs) <- c('21', '23', '25', '27', '29', '31', '33')
+treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
+names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
+```
+
+Inspect raw O2 measurements
+```{r}
+#Filter for dark phase to visualize respiration rates
+Rd.plot <- PR.df %>%
+  filter(phase == 'dark') %>%
+  ggplot(aes(x = time, y = oxygen, colour = EE_treatment)) +
+  geom_hline(aes(yintercept = 80), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_vline(aes(xintercept = 900), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 1200), colour="black", size = 0.5, linetype = 'solid') +
+  geom_point(size = 0.1) +
+  geom_point(data = filter(PR.df, Lineage == 'Blank' & phase == 'dark'), colour="black", size = 0.1) +
+  facet_grid(EE_treatment~., labeller = labeller(EE_treatment = treatment.labs)) +
+  scale_x_continuous('Time (seconds)', limits = c(0, 1210), breaks = seq(0, 1210, by = 400), expand = c(0,0)) +
+  scale_y_continuous('Oxygen (% air saturation)') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        title = element_text(size = 14, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  ggtitle(paste0("Change in oxygen at ", PR.df$Growth_temperature, "°C - dark phase")) +
+  guides(colour = FALSE)
+Rd.plot
+
+#Filter for light phase to visualize photosynthesis rates
+Pnet.plot <- PR.df %>%
+  filter(phase == 'light') %>%
+  ggplot(aes(x = time, y = oxygen, colour = EE_treatment)) +
+  geom_hline(aes(yintercept = 80), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_vline(aes(xintercept = 1500), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 2100), colour="black", size = 0.5, linetype = 'solid') +
+  geom_point(size = 0.05) +
+  geom_point(data = filter(PR.df, Lineage == 'Blank' & phase == 'light'), colour="black", size = 0.05) +
+  facet_grid(EE_treatment~., labeller = labeller(EE_treatment = treatment.labs)) +
+  scale_x_continuous('Time (seconds)', limits = c(1200, 2200), breaks = seq(1200, 2200, by = 400), expand = c(0,0)) +
+  scale_y_continuous('Oxygen (% air saturation)') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        title = element_text(size = 14, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  ggtitle(paste0("Change in oxygen at ", PR.df$Growth_temperature, "°C - light phase")) +
+  guides(colour = FALSE)
+Pnet.plot
+```
+Mark samples that displayed irregularities during the light phase (chambers 6,7 and 9 appear to have technical issues)
+```{r}
+PR.df_QC <- PR.df %>%
+  #mutate(QC = case_when(Lineage %in% c('TP1-3','TP2-2', 'TP3-2', 'TP4-3', 'TP5-1') ~ 'throw',
+                        #T ~ 'keep')) #For 31°C
+  #mutate(QC = case_when(Lineage %in% c('TP1-2', 'TP2-1', 'TP4-3', 'TP4-5', 'TP5-1', 'TP5-6') ~ 'throw',
+                        #T ~ 'keep')) #For 29°C
+  #mutate(QC = case_when(Lineage %in% c('TP2-6') ~ 'throw',
+                        #T ~ 'keep')) #For 27°C
+  #mutate(QC = case_when(Lineage %in% c('TP1-4', 'TP2-5', 'TP3-6', 'TP4-4', 'TP5-6') ~ 'throw',
+                        #T ~ 'keep')) #For 25°C
+  #mutate(QC = case_when(Lineage %in% c('TP2-2', 'TP2-3', 'TP5-4', 'TP5-6') ~ 'throw',
+                        #T ~ 'keep')) #For 23°C
+  mutate(QC = case_when(Lineage %in% c('TP2-2', 'TP2-6', 'TP3-2') ~ 'throw',
+                        T ~ 'keep')) #For 21°C
+```
+
+Plot change in O2 over the entire assay, indicating samples that failed QC
+```{r}
+PR.plot <- PR.df_QC %>%
+  ggplot(aes(x = time, y = oxygen, colour = EE_treatment)) +
+  annotate('rect', xmin = 0, xmax = 1200, ymin = 75, ymax = 120, alpha = 0.2, fill = 'black') +
+  geom_hline(aes(yintercept = 80), colour="black", size = 0.25, linetype = 'dashed') +
+  geom_vline(aes(xintercept = 900), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 1200), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 1500), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 2100), colour="black", size = 0.5, linetype = 'solid') +
+  geom_point(aes(alpha = QC), size = 0.001) +
+  geom_point(data = filter(PR.df_QC, Lineage == 'Blank' & Replicate == 1), colour="black", size = 0.01) +
+  facet_grid(EE_treatment~., labeller = labeller(EE_treatment = treatment.labs)) +
+  scale_alpha_manual(values = c(0.75, 0.05)) +
+  scale_x_continuous('Time (seconds)', limits = c(0, 2200), breaks = seq(0, 2200, by = 400), expand = c(0,0)) +
+  scale_y_continuous('Oxygen (% air saturation)', limits = c(75, 120), expand = c(0,0)) +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        title = element_text(size = 14, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  ggtitle(paste0("Change in oxygen at ", PR.df_QC$Growth_temperature, "°C")) +
+  guides(colour = F, alpha = F)
+PR.plot
+```
+
+Save and export plots
+```{r}
+#PR.plot_31C <- PR.plot
+#PR.plot_29C <- PR.plot
+#PR.plot_27C <- PR.plot
+#PR.plot_25C <- PR.plot
+#PR.plot_23C <- PR.plot
+PR.plot_21C <- PR.plot
+
+PR_plot <- ggarrange(PR.plot_31C + rremove('xlab') + rremove('ylab'),
+                     PR.plot_29C + rremove('xlab') + rremove('ylab'),
+                     PR.plot_27C +rremove('xlab') + rremove('ylab'),
+                     #PR.plot_25C +rremove('xlab') + rremove('ylab'),
+                     #PR.plot_23C +rremove('xlab') + rremove('ylab'),
+                     #PR.plot_21C +rremove('xlab') + rremove('ylab'),
+                     common.legend = TRUE,
+                     heights = c(1, 1, 1),
+                     widths = c(1, 1, 1),
+                     ncol = 3) 
+PR_plot
+
+PR_plot.final <- annotate_figure(PR_plot,
+                                 left = text_grob("Oxygen (% air saturation)", color = "black", face = "bold", rot = 90, size = 14),
+                                 bottom = text_grob("Time (seconds)", color = "black", face = "bold", size = 14))
+PR_plot.final
+
+ggsave(plot = PR_plot.final, "TPA - raw O2 measurements.pdf", 
+       path = "./",
+       width = 12.5,
+       height = 7.5,
+       units = 'in',
+       dpi = 300)
+```
+
+Respiration analysis
+
+Inspect data
+```{r}
+#Filter for dark phase to visualize respiration
+Rd.plot <- PR.df %>%
+  filter(phase == 'dark') %>%
+  ggplot(aes(x = time, y = oxygen, colour = EE_treatment)) +
+  geom_hline(aes(yintercept = 80), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_vline(aes(xintercept = 900), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 1200), colour="black", size = 0.5, linetype = 'solid') +
+  geom_point(size = 0.1) +
+  geom_point(data = filter(PR.df, Lineage == 'Blank' & phase == 'dark'), colour="black", size = 0.1) +
+  facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs)) +
+  scale_x_continuous('Time (seconds)', limits = c(0, 1210), breaks = seq(0, 1210, by = 400), expand = c(0,0)) +
+  scale_y_continuous('Oxygen (% air saturation)') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        title = element_text(size = 14, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  ggtitle(paste0("Change in oxygen at ", PR.df$Growth_temperature, "°C - dark phase")) +
+  guides(colour = F)
+Rd.plot
+```
+
+Calculate respiration rates
+```{r}
+#Separate culture from blank measurements
+Rd.df <- PR.df %>%
+  filter(phase == 'dark') %>%
+  filter(Lineage != 'Blank') %>%
+  select(!c(Replicate, Run, Chamber, phase)) %>%
+  nest(data = c(time, oxygen))
+
+#Prepare the function calc_nest_rate which enables us to map the function calc_rate() to each nest
+calc_nest_rate <- function(nest_data) {
+  result <- calc_rate(data.frame(time = nest_data$time, oxygen = nest_data$oxygen),
+            from = 900, to = 1200, by = 'time' #Calculate rates for last 5 minutes of the dark phase (first 15 mins were for dark adaptation)
+            )
+  list(intercept = result$summary[[3]], slope = result$summary[[4]], r2 = result$summary[[5]], rate = result$summary[[13]]) #Hash this out to obtain full list output
+}
+
+#Prepare the function extract_values to extract values of interest from the generated lists
+extract_values_resp <- function(nested_list) {
+  data.frame(intercept = nested_list$intercept,
+             slope = nested_list$slope,
+             r2 = nested_list$r2,
+             rate = nested_list$rate)
+}
+
+#Calculate respiration rates
+Rd.df_rate <- Rd.df %>%
+  mutate(rate_lists = map(data, calc_nest_rate)) %>%
+  mutate(rate_values = map(rate_lists, extract_values_resp)) %>%
+  select(-rate_lists) %>%
+  unnest(rate_values) %>%
+  relocate(data, .after = rate) #%>%
+  #filter(Lineage != 'TP1-1') #For time series at 31C, TP1-1 resp rate needs to be calculated between 5 & 10 mins
+
+#For time series at 31C, calculate respiration rate for TP1-1 between 5-10 mins
+Rd.df_rate_TP1.1_31C <- Rd.df %>%
+  filter(Lineage == 'TP1-1') %>%
+  mutate(rate_lists = map(data, calc_nest_rate)) %>%
+  mutate(rate_values = map(rate_lists, extract_values_resp)) %>%
+  select(-rate_lists) %>%
+  unnest(rate_values) %>%
+  relocate(data, .after = rate)
+
+Rd.df_rate <- rbind(Rd.df_rate, Rd.df_rate_TP1.1_31C)
+```
+
+Calculate & adjust for background respiration rates using blanks
+```{r}
+#Select blank measurements
+Rd.df_blank <- PR.df %>%
+  filter(phase == 'dark') %>%
+  filter(Lineage == 'Blank') %>%
+  filter(EE_treatment != 'TP1' | Replicate != 2) %>% #TP1 usually has a 2 technical replicates for the blank, use either
+  select(!c(Replicate, Run, Chamber, phase)) %>%
+  nest(data = c(time, oxygen))
+
+#Calculate background respiration rates
+Rd.df_blank_rate <- Rd.df_blank %>%
+  mutate(rate_lists = map(data, calc_nest_rate)) %>%
+  mutate(rate_values = map(rate_lists, extract_values_resp)) %>%
+  select(-rate_lists) %>%
+  unnest(rate_values) %>%
+  relocate(data, .after = rate)
+
+#Adjust for background respiration rates
+Rd.df_adj <- rbind(Rd.df_rate, Rd.df_blank_rate) %>%
+  group_by(EE_treatment) %>%
+  mutate(adj_rate = rate - rate[Lineage == 'Blank']) %>%
+  relocate(data, .after = adj_rate)
+```
+
+Convert the adjusted respiration rates to pmolO2/min/cell
+```{r}
+#Convert to pmolO2/min
+Rd_conversion <- convert_rate(Rd.df_adj$adj_rate, 
+                        oxy.unit = '%Air',           # oxygen unit to convert from
+                        time.unit = 's',             # time unit to convert from
+                        output.unit = 'pmol/min',    # unit to convert to
+                        volume = 0.00146,            # chamber volume in litres (1.46 ml)
+                        t = 21,                      # temperature, in °C (change for each temperature treatment)
+                        S = 33,                      # salinity, in ppt
+                        P = 1.013253)                # atmospheric pressure, in bar                   
+
+Rd.df_converted <- list(adj_rate = Rd_conversion$summary[[13]], pmolO2.s = Rd_conversion$summary[[29]]) %>%
+  as.data.frame()
+
+Rd.df_final <- left_join(Rd.df_adj, Rd.df_converted, by = 'adj_rate') %>%
+  distinct() %>%
+  mutate(pmolO2.min = pmolO2.s*60) %>% #convert from pmol/s to pmol/min
+  mutate(pmolO2.min.cell = pmolO2.min/(750000*1.46)) #normalise for cell density (750,000 cells/ml)
+```
+
+Visualize Rd rates
+```{r}
+Rd.plot_final <- Rd.df_final %>%
+  filter(Lineage != 'Blank') %>%
+  ggplot(aes(y = pmolO2.min.cell, x = EE_treatment, fill = EE_treatment)) +
+  geom_hline(aes(yintercept = 0), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_boxplot() +
+  geom_point() +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
+  scale_y_continuous(expression(bold(R[d]~(pmol~O[2]~min^-1~cell^-1)))) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        plot.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  ggtitle(paste0("Rd rates at ", Rd.df_final$Growth_temperature, "°C")) +
+  guides(fill = FALSE, colour = FALSE)
+Rd.plot_final
+```
+
+Save respiration rates
+```{r}
+Rdf_xl <- Rdf_final %>%
+  select(-data) %>%
+  arrange(by_group = Lineage) %>%
+  write_xlsx(path = "./Rd rates - 21C.xlsx", #For each temperature, change file name
+             col_names = TRUE,
+             format_headers = TRUE)
+```
+
+Photosynthesis rates
+
+Inspect data
+```{r}
+#Filter for light phase to visualize photosynthesis
+Pnet.plot <- PR.df %>%
+  filter(phase == 'light') %>%
+  #filter(Lineage == 'TP4-3') %>%
+  ggplot(aes(x = time, y = oxygen, colour = EE_treatment)) +
+  geom_hline(aes(yintercept = 80), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_vline(aes(xintercept = 1500), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(aes(xintercept = 2100), colour="black", size = 0.5, linetype = 'solid') +
+  geom_point(size = 0.05) +
+  geom_point(data = filter(PR.df, Lineage == 'Blank' & phase == 'light'), colour="black", size = 0.05) +
+  facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs)) +
+  scale_x_continuous('Time (seconds)', limits = c(1200, 2200), breaks = seq(1200, 2200, by = 400), expand = c(0,0)) +
+  scale_y_continuous('Oxygen (% air saturation)') +
+  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        title = element_text(size = 14, face = "bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  ggtitle(paste0("Change in oxygen at ", PR.df$Growth_temperature, "°C - light phase")) +
+  guides(colour = F)
+Pnet.plot
+```
+
+Calculate Pnet rates
+```{r}
+#Separate culture from blank measurements
+Pnet.df <- PR.df %>%
+  filter(phase == 'light') %>%
+  filter(Lineage != 'Blank') %>%
+  #filter(!(Lineage %in% c('TP1-3', 'TP2-2', 'TP3-2', 'TP4-3', 'TP5-1'))) %>% #Remove outliers at 31°C
+  #filter(!(Lineage %in% c('TP1-2', 'TP2-1', 'TP4-3', 'TP4-5', 'TP5-1', 'TP5-5'))) %>% #Remove outliers at 29°C
+  #filter(!(Lineage %in% c('TP2-6'))) %>% #Remove outliers at 27°C
+  #filter(!(Lineage %in% c('TP1-4', 'TP2-5', 'TP3-6', 'TP4-4', 'TP5-6'))) %>% #Remove outliers at 25°C
+  #filter(!(Lineage %in% c('TP2-2', 'TP2-3', 'TP5-4', 'TP5-6'))) %>% #Remove outliers at 23°C
+  #filter(!(Lineage %in% c('TP2-2', 'TP2-6', 'TP3-2'))) %>% #Remove outliers at 21°C
+  filter(time > 1500) %>% #The first 5 mins are filtered due to O2 values adjusting after turning on lights
+  filter(time < 2100) %>% #Only keep the following 10 mins of light phase to calculate photosynthesis rates
+  select(!c(Replicate, Run, Chamber, phase)) %>%
+  nest(data = c(time, oxygen))
+
+#Prepare the function auto_nest_rate which enables us to map the function auto_rate() to each nest
+auto_nest_rate <- function(nest_data) {
+  result <- auto_rate(data.frame(time = nest_data$time, oxygen = nest_data$oxygen),
+            width = 300, by = "time"
+            )
+}
+
+#Prepare the function extract_values to extract values of interest from the generated lists
+extract_values_phot <- function(nested_list) {
+  data.frame(intercept = nested_list$summary[[3]],
+             slope = nested_list$summary[[4]],
+             r2 = nested_list$summary[[5]],
+             rate = nested_list$summary[[13]])
+}
+
+#Calculate photosynthesis rates
+Pnet.df_rate <- Pnet.df %>%
+  mutate(rate_lists = map(data, auto_nest_rate)) %>%
+  mutate(rate_values = map(rate_lists, extract_values_phot)) %>%
+  select(-rate_lists) %>%
+  unnest(rate_values) %>%
+  relocate(data, .after = rate)
+
+#Find best fits for rates that are positive
+Pnet.df_rate_pos <- Pnet.df_rate %>%
+  group_by(Lineage) %>%
+  filter(r2 == max(r2[rate > 0])) %>%
+  mutate(rate = mean(rate)) %>% #If multiple rolling rates are selected due to the same r2 scores, keep the mean rate
+  mutate(slope = mean(slope)) %>%
+  mutate(intercept = mean(intercept)) %>%
+  distinct()
+
+#Find best fits for rates that are negative (for 21 and 31°C)
+Pnet.df_rate_neg <- Pnet.df_rate %>%
+  group_by(Lineage) %>%
+  filter(r2 == max(r2[rate < 0])) %>%
+  mutate(rate = mean(rate)) %>%
+  mutate(slope = mean(slope)) %>%
+  mutate(intercept = mean(intercept)) %>%
+  distinct()
+
+#Keep the best fits
+Pnet.df_rate_max <- rbind(Pnet.df_rate_pos, Pnet.df_rate_neg) %>%
+  group_by(Lineage) %>%
+  filter(r2 == max(r2))
+```
+
+Calculate & adjust for background photosynthesis rates using blanks
+```{r}
+#Select blank measurements
+Pnet.df_blank <- PR.df %>%
+  filter(phase == 'light') %>%
+  filter(Lineage == 'Blank') %>%
+  filter(time > 1500) %>%
+  filter(time < 2100) %>%
+  filter(EE_treatment != 'TP1' | Replicate != 1) %>% #TP1 usually has 2 technical replicates, select either one
+  select(!c(Replicate, Run, Chamber, phase)) %>%
+  nest(data = c(time, oxygen))
+
+#Calculate background photosynthesis rates
+Pnet.df_blank_rate <- Pnet.df_blank %>%
+  mutate(rate_lists = map(data, auto_nest_rate)) %>%
+  mutate(rate_values = map(rate_lists, extract_values_phot)) %>%
+  select(-rate_lists) %>%
+  unnest(rate_values) %>%
+  relocate(data, .after = rate)
+
+Pnet.df_blank_rate_pos <- Pnet.df_blank_rate %>%
+  group_by(EE_treatment) %>%
+  filter(r2 == max(r2[rate > 0])) %>%
+  mutate(rate = mean(rate)) %>%
+  mutate(slope = mean(slope)) %>%
+  mutate(intercept = mean(intercept)) %>%
+  distinct()
+
+Pnet.df_blank_rate_neg <- Pnet.df_blank_rate %>%
+  group_by(EE_treatment) %>%
+  filter(r2 == max(r2[rate < 0])) %>%
+  mutate(rate = mean(rate)) %>%
+  mutate(slope = mean(slope)) %>%
+  mutate(intercept = mean(intercept)) %>%
+  distinct()
+
+Pnet.df_blank_rate_max <- rbind(Pnet.df_blank_rate_pos, Pnet.df_blank_rate_neg) %>%
+  group_by(EE_treatment) %>%
+  filter(r2 == max(r2))
+
+#Adjust for background photosynthesis rates
+Pnet.df_adj <- rbind(Pnet.df_rate_max, Pnet.df_blank_rate_max) %>%
+  group_by(EE_treatment) %>%
+  mutate(adj_rate = rate - rate[Lineage == 'Blank']) %>%
+  relocate(data, .after = adj_rate)
+```
+
+Convert the adjusted photosynthesis rates to pmolO2/min/cell
+```{r}
+#Convert to pmolO2/min
+Pnet.conversion <- convert_rate(Pnet.df_adj$adj_rate, 
+                        oxy.unit = '%Air',           # oxygen unit to convert from
+                        time.unit = 's',             # time unit to convert from
+                        output.unit = 'pmol/min',    # unit to convert to
+                        volume = 0.00146,            # chamber volume in litres (1.46 ml)
+                        t = 21,                      # temperature, in °C (change for each temperature treatment)
+                        S = 33,                      # salinity, in ppt
+                        P = 1.013253)                # atmospheric pressure, in bar                   
+
+Pnet.df_converted <- list(adj_rate = Pnet.conversion$summary[[13]], pmolO2.s = Pnet.conversion$summary[[29]]) %>%
+  as.data.frame()
+
+Pnet.df_final <- left_join(Pnet.df_adj, Pnet.df_converted, by = 'adj_rate') %>%
+  distinct() %>%
+  mutate(pmolO2.min = pmolO2.s*60) %>% #convert from pmol/s to pmol/min
+  mutate(pmolO2.min.cell = pmolO2.min/(750000*1.46)) #normalise for cell density (750,000 cells/ml)
+```
+
+Visualize photosynthesis rates
+```{r}
+Pnet.plot <- Pnet.df_final %>%
+  filter(Lineage != 'Blank') %>%
+  ggplot(aes(y = pmolO2.min.cell, x = EE_treatment, fill = EE_treatment)) +
+  geom_hline(aes(yintercept = 0), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_boxplot() +
+  geom_point() +
+  scale_x_discrete('Experimental evolution treatment') +
+  scale_y_continuous(expression(P[net]~(pmol~O[2]~min^-1~cell^-1))) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+Pnet.plot
+```
+
+Save photosynthesis rates
+```{r}
+Pdf_xl <- Pdf_final %>%
+  select(-data) %>%
+  arrange(by_group = Lineage) %>%
+  write_xlsx(path = "./Pnet rates - 21C.xlsx", #For each temperature, change file name
+             col_names = TRUE,
+             format_headers = TRUE)
+```
+
+Rd, Pnet and Pgross plots
+```{r}
+#Respiration plots
+Rd.df_import <- read_xlsx("/Users/hugo/Documents/Melbourne PhD/Experimental work/Chapter 3/TPA/TPA - Rd & Pnet rates.xlsx", sheet = 1) %>%
+  filter(Lineage != 'Blank') %>%
+  mutate(Rate_type = 'respiration')
+
+tukey_hsd.Rd.27C <- aov(pmolO2.min.cell ~ EE_treatment, data = Rd.df_import[Rd.df_import$Growth_temperature == 27, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.Rd.29C <- aov(pmolO2.min.cell ~ EE_treatment, data = Rd.df_import[Rd.df_import$Growth_temperature == 29, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+
+tukey_hsd.Rd.31C <- aov(pmolO2.min.cell ~ EE_treatment, data = Rd.df_import[Rd.df_import$Growth_temperature == 31, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+#No significant differences in Rd at any temp (27-31°C)
+
+Rd.boxplots <- Rd.df_import %>%
+  filter(Growth_temperature >= 27) %>%
+  ggplot(aes(y = pmolO2.min.cell, x = EE_treatment, fill = EE_treatment)) +
+  geom_hline(aes(yintercept = 0), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_boxplot() +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
+  scale_y_continuous(expression(bold(R[d]~(pmol~O[2]~min^-1~cell^-1)))) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+Rd.boxplots
+
+#Net photosynthesis plots
+Pnet.df_import <- read_xlsx("/Users/hugo/Documents/Melbourne PhD/Experimental work/Chapter 3/TPA/TPA - Rd & Pnet rates.xlsx", sheet = 2) %>%
+  filter(Lineage != 'Blank') %>%
+  mutate(Rate_type = 'photosynthesis') %>%
+  filter(!(Growth_temperature == 31 & Lineage %in% c('TP1-3', 'TP2-2', 'TP3-2', 'TP4-3', 'TP5-1'))) %>%
+  filter(!(Growth_temperature == 29 & Lineage %in% c('TP1-2', 'TP2-1', 'TP4-3', 'TP4-5', 'TP5-1', 'TP5-5'))) %>%
+  filter(!(Growth_temperature == 27 & Lineage %in% c('TP2-6')))
+
+tukey_hsd.Pnet.27C <- aov(pmolO2.min.cell ~ EE_treatment, data = Pnet.df_import[Pnet.df_import$Growth_temperature == 27, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 27)
+
+tukey_hsd.Pnet.29C <- aov(pmolO2.min.cell ~ EE_treatment, data = Pnet.df_import[Pnet.df_import$Growth_temperature == 29, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 29)
+
+tukey_hsd.Pnet.31C <- aov(pmolO2.min.cell ~ EE_treatment, data = Pnet.df_import[Pnet.df_import$Growth_temperature == 31, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 31)
+
+tukey_hsd.Pnet <- rbind(tukey_hsd.Pnet.27C, tukey_hsd.Pnet.29C) %>%
+  rbind(tukey_hsd.Pnet.31C)
+
+Pnet.boxplots <- Pnet.df_import %>%
+  filter(Growth_temperature >= 27) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 0), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_boxplot(aes(y = pmolO2.min.cell, x = EE_treatment, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.Pnet, label = "p.adj.signif", y.position = c(0.36, 0.33), tip.length = 0.01) +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
+  scale_y_continuous(expression(bold(P[net]~(pmol~O[2]~min^-1~cell^-1)))) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+Pnet.boxplots
+
+#Gross photosynthesis plots
+library(plyr)
+Rd.df_import2 <- match_df(Rd.df_import, Pnet.df_import, on = c('Growth_temperature', 'EE_treatment', 'Lineage'))
+detach("package:plyr", unload=TRUE)
+
+Pgross.df <- rbind(Rd.df_import2, Pnet.df_import) %>%
+  group_by(Growth_temperature, Lineage) %>%
+  mutate(Pgross = pmolO2.min.cell[Rate_type == 'photosynthesis'] + pmolO2.min.cell[Rate_type == 'respiration']) %>%
+  ungroup() %>%
+  dplyr::select(Growth_temperature, EE_treatment, Lineage, Pgross) %>%
+  distinct()
+
+tukey_hsd.Pgross.27C <- aov(Pgross ~ EE_treatment, data = Pgross.df[Pgross.df$Growth_temperature == 27, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 27)
+
+tukey_hsd.Pgross.29C <- aov(Pgross ~ EE_treatment, data = Pgross.df[Pgross.df$Growth_temperature == 29, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 29)
+
+tukey_hsd.Pgross.31C <- aov(Pgross ~ EE_treatment, data = Pgross.df[Pgross.df$Growth_temperature == 31, ]) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05) %>%
+  mutate(Growth_temperature = 31)
+
+tukey_hsd.Pgross <- rbind(tukey_hsd.Pgross.27C, tukey_hsd.Pgross.29C) %>%
+  rbind(tukey_hsd.Pgross.31C)
+
+Pgross.boxplots <- Pgross.df %>%
+  filter(Growth_temperature >= 27) %>%
+  ggplot() +
+  geom_hline(aes(yintercept = 0), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_boxplot(aes(y = Pgross, x = EE_treatment, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.Pgross, label = "p.adj.signif", y.position = c(0.26, 0.22), tip.length = 0.01) +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
+  scale_y_continuous(expression(bold(P[gross]~(pmol~O[2]~min^-1~cell^-1)))) +
+  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        guides(fill = FALSE, colour = FALSE)
+Pgross.boxplots
+
+#Plot Rd and Pnet together
+Rd.df_import3 <- Rd.df_import %>%
+  group_by(Growth_temperature, EE_treatment) %>%
+  mutate(mean_Rd = mean(pmolO2.min.cell)) %>%
+  mutate(sd_Rd = sd(pmolO2.min.cell)) %>%
+  ungroup() %>%
+  dplyr::select(Growth_temperature, EE_treatment, mean_Rd, sd_Rd) %>%
+  distinct()
+
+Pnet.df_import2 <- Pnet.df_import %>%
+  group_by(Growth_temperature, EE_treatment) %>%
+  mutate(mean_Pnet = mean(pmolO2.min.cell)) %>%
+  mutate(sd_Pnet = sd(pmolO2.min.cell)) %>%
+  ungroup() %>%
+  dplyr::select(Growth_temperature, EE_treatment, mean_Pnet, sd_Pnet) %>%
+  distinct()
+
+RdPnet.df <- left_join(Rd.df_import3, Pnet.df_import2, by = c('Growth_temperature', 'EE_treatment')) 
+
+RdPnet.plot <- RdPnet.df %>%
+  filter(Growth_temperature >= 27) %>%
+  mutate(Growth_temperature = as.factor(Growth_temperature)) %>%
+  ggplot(aes(x = abs(mean_Rd), y = mean_Pnet, fill = EE_treatment, group = interaction(Growth_temperature, EE_treatment))) +
+  geom_linerange(aes(xmin = abs(mean_Rd) - sd_Rd, xmax = abs(mean_Rd) + sd_Rd, colour = EE_treatment), size = 0.4) +
+  geom_linerange(aes(ymin = mean_Pnet - sd_Pnet, ymax = mean_Pnet + sd_Pnet, colour = EE_treatment), size = 0.4) +
+  geom_abline(intercept = 0, slope = 1, colour="black", size = 0.5, linetype = 'dashed') +
+  geom_point(pch = 21, size = 2) +
+  facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
+  scale_x_continuous(expression(bold(R[d]~(pmol~O[2]~min^-1~cell^-1))), limits = c(-0.1, 0.5), expand = c(0,0)) +
+  scale_y_continuous(expression(bold(P[net]~(pmol~O[2]~min^-1~cell^-1))), limits = c(-0.1, 0.5), expand = c(0,0)) +
+  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual('Experimental evolution treatment', labels = treatment.labs,
+                    values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top', 
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(colour = F)
+RdPnet.plot
+```
+
+Export plots with Fv/Fm output
+```{r}
+PR.boxplots <- ggarrange(Rd.boxplots + rremove('xlab'),
+                         Pnet.boxplots + rremove('xlab'),
+                         Pgross.boxplots + rremove('xlab'),
+                         common.legend = TRUE,
+                         labels = c("A", "B", "C"),
+                         heights = c(1, 1, 1),
+                         widths = c(1, 1, 1),
+                         ncol = 1,
+                         align = "v") 
+PR.boxplots
+
+PR.boxplots.annot <- annotate_figure(PR.boxplots,
+                                     bottom = text_grob("Experimental evolution treatment", color = "black", face = "bold", size = 14))
+PR.boxplots.annot
+
+PR.FvFm.plots <- ggarrange(RdPnet.plot,
+                           FvFm.plots,
+                           heights = c(1, 1),
+                           labels = "A",
+                           ncol = 1,
+                           align = "hv") 
+PR.FvFm.plots
+
+PR.FvFm.plots.annot <- annotate_figure(PR.FvFm.plots,
+                                       bottom = text_grob("Experimental evolution treatment", color = "black", face = "bold", size = 14))
+PR.FvFm.plots.annot
+```
+
+Save plots
+```{r}
+ggsave(plot = PR.boxplots.annot, "TPA - PR boxplots.pdf", 
+       path = "./",
+       width = 7.5,
+       height = 12.5,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+
+ggsave(plot = PR.FvFm.plots.annot, "TPA - PR with FvFm.pdf", 
+       path = "./",
+       width = 10,
+       height = 10,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+```

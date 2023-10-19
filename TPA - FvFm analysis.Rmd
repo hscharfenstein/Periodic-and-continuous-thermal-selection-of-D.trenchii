@@ -24,15 +24,14 @@ FvFm.df <- read_xlsx("./GCB dataset.xlsx", sheet = 4)
 
 #Relevel nutrient treatments
 FvFm.df$Growth_temperature <- ordered(FvFm.df$Growth_temperature, levels = c('21', '23', '25', '27', '29', '31', '33'))
-FvFm.df$Nutrient_treatment <- ordered(FvFm.df$Nutrient_treatment, levels = c('IMK', 'NO3_depleted'))
 
 #Prepare labels for plot facets
-nutrient.labs <- c("Nitrate replete", "Nitrate depleted")
-names(nutrient.labs) <- c('IMK', "NO3_depleted")
 growth.labs <- c("Growth cycle 1", "Growth cycle 2")
 names(growth.labs) <- c('1', "2")
 temperature.labs <- c('21°C', '23°C', '25°C', '27°C', '29°C', '31°C', '33°C')
 names(temperature.labs) <- c('21', '23', '25', '27', '29', '31', '33')
+treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
+names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
 Fv/Fm analyses
@@ -160,7 +159,7 @@ FvFm.plot <- FvFm.df3 %>%
                                                                             0.48, 0.49, 0.5, 0.51, 0.48, 0.49, 0.5,
                                                                             0.41, 0.42, 0.43), tip.length = 0.01) +
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs), scales = ("free_y")) +
-  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Maximum~quantum~yield(F[v]/F[m]))), limits = c(0.3, 0.55), expand = c(0, 0)) +
   scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
   scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -174,7 +173,7 @@ FvFm.plot <- FvFm.df3 %>%
         legend.text = element_text(size = 12),
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)
@@ -185,7 +184,7 @@ Delta_FvFm.plot <- FvFm.df4 %>%
   ggplot() +
   geom_boxplot(aes(x = EE_treatment, y = Delta_FvFm, fill = EE_treatment)) +
   stat_pvalue_manual(tukey_hsd.Delta_FvFm, label = "p.adj.signif", y.position = c(-0.01, 0.02, -0.01, 0, 0.01), tip.length = 0.01) +
-  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~F[v]/F[m])), expand =c(0,0), limits = c(-0.15, 0.05)) +
   scale_colour_manual(name = 'Experimental evolution treatment', values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
   scale_fill_manual(name = 'Experimental evolution treatment', values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -198,7 +197,7 @@ Delta_FvFm.plot <- FvFm.df4 %>%
         legend.position = 'top',
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face ="bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)
@@ -212,7 +211,7 @@ DHW_FvFm.plot <- FvFm.df5 %>%
   ggplot(aes(x = EE_treatment, y = FvFm, fill = EE_treatment)) +
   geom_boxplot() +
   facet_grid(.~Temp_DHW, labeller = labeller(Temp_DHW=temp.dhw.labs)) +
-  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Maximum~quantum~yield~(F[v]/F[m]))), limits = c(0.3, 0.5), expand =c(0,0)) +
   scale_colour_manual(name = 'Experimental evolution treatment', values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
   scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -227,7 +226,7 @@ DHW_FvFm.plot <- FvFm.df5 %>%
         legend.position = 'top',
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face ="bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)
@@ -237,7 +236,7 @@ DHW_FvFm.plot
 DHW_Delta_FvFm.plot <- FvFm.df6 %>%
   ggplot() +
   geom_boxplot(aes(x = EE_treatment, y = Delta_FvFm, fill = EE_treatment)) +
-  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~F[v]/F[m])), expand =c(0,0), limits = c(-0.2, 0)) +
   scale_colour_manual(name = 'Experimental evolution treatment', values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
   scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -250,7 +249,7 @@ DHW_Delta_FvFm.plot <- FvFm.df6 %>%
         legend.position = 'top',
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face ="bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)
@@ -261,20 +260,24 @@ Combine plots
 ```{r}
 FvFm.plots <- cowplot::plot_grid(FvFm.plot + rremove('xlab'),
                                  Delta_FvFm.plot  + rremove('xlab'),
-                                 labels = c("D", "E"),
+                                 labels = c("B", "C"),
                                  ncol = 2, align = "v",
                                  axis = "b",
                                  rel_widths = c(1, 0.5))
 FvFm.plots
 
-FvFm_DHW.plots <- cowplot::plot_grid(DHW_FvFm.plot,
-                                     DHW_Delta_FvFm.plot,
+FvFm_DHW.plots <- cowplot::plot_grid(DHW_FvFm.plot + rremove('xlab'),
+                                     DHW_Delta_FvFm.plot + rremove('xlab'),
                                      labels = c("A", "B"),
                                      ncol = 2,
                                      align = "v",
                                      axis = "b",
                                      rel_widths = c(1, 0.5))
 FvFm_DHW.plots
+
+FvFm_DHW.plots.annot <- annotate_figure(FvFm_DHW.plots,
+                                       bottom = text_grob("Experimental evolution treatment", color = "black", face = "bold", size = 14))
+FvFm_DHW.plots.annot
 ```
 
 Save plots
@@ -287,7 +290,7 @@ ggsave(plot = FvFm.plots, "TPA - FvFM plots.pdf",
        dpi = 300,
        device = cairo_pdf)
 
-ggsave(plot = FvFm_DHW.plots, "TPA - FvFM by DHW plots.pdf", 
+ggsave(plot = FvFm_DHW.plots.annot, "TPA - FvFM by DHW plots.pdf", 
        path = "./",
        width = 10,
        height = 5,

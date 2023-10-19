@@ -25,15 +25,14 @@ ExROS.df <- read_xlsx("./GCB dataset.xlsx", sheet = 5)
 
 #Relevel nutrient treatments
 ExROS.df$Growth_temperature <- ordered(ExROS.df$Growth_temperature, levels = c('27', '29', '31'))
-ExROS.df$Nutrient_treatment <- ordered(ExROS.df$Nutrient_treatment, levels = c('IMK', 'NO3_depleted'))
 
 #Prepare labels for plot facets
-nutrient.labs <- c("Nitrate replete", "Nitrate depleted")
-names(nutrient.labs) <- c('IMK', "NO3_depleted")
 growth.labs <- c("Growth cycle 1", "Growth cycle 2")
 names(growth.labs) <- c('1', "2")
 temperature.labs <- c('21°C', '23°C', '25°C', '27°C', '29°C', '31°C', '33°C')
 names(temperature.labs) <- c('21', '23', '25', '27', '29', '31', '33')
+treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
+names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
 ExROS analyses
@@ -137,7 +136,7 @@ ExROS.plot <- ExROS.df2 %>%
                                     0.00028, 0.0003, 0.00035, 0.00037, 0.00039, 0.00041),
                      tip.length = 0.01) +
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
-  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand =c(0,0)) +
   scale_y_continuous(expression(bold(ExROS/cell)), limits = c(0, 0.00043), expand = c(0,0)) +
   scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
   scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -151,7 +150,7 @@ ExROS.plot <- ExROS.df2 %>%
         legend.text = element_text(size = 12),
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)
@@ -162,7 +161,7 @@ Delta_ExROS.plot <- ExROS.df3 %>%
   ggplot() +
   geom_boxplot(aes(x = EE_treatment, y = Delta_ExROS, fill = EE_treatment)) +
   stat_pvalue_manual(tukey_hsd.Delta_ExROS, label = "p.adj.signif", y.position = c(0.00035, 0.00033, 0.00031), tip.length = 0.01) +
-  scale_x_discrete('Experimental evolution treatment', expand =c(0,0)) +
+  scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~ExROS/cell)), limits = c(0, 0.00037), expand = c(0,0)) +
   scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
   scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -176,7 +175,7 @@ Delta_ExROS.plot <- ExROS.df3 %>%
         legend.text = element_text(size = 12),
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)

@@ -1,0 +1,144 @@
+---
+title: "Experimental evolution and Davies Reef temperature profiles"
+author: "Hugo Scharfenstein"
+date: "2022-12-16"
+output: html_document
+---
+
+Load packages
+```{r}
+#Data import and export packages
+library(readxl)
+library(writexl)
+#Data wrangling packages
+library(tidyverse)
+#Packages for plots
+library(heatwaveR)
+library(ggforce)
+library(ggpubr)
+```
+
+Import data
+```{r}
+#Import df with temperature profiles for experimental evolution treatments
+EE_TP.df <- read_xlsx("./GCB dataset.xlsx", sheet = 11) %>%
+  mutate(Time_day = as.numeric(Time_day), Temp_programmed = as.numeric(Temp_programmed)) %>%
+  mutate_if(is.numeric, round, digits = 2) %>%
+  distinct() %>%
+  arrange(Time_day)
+
+#Import df with temperature profiles for Davies Reef
+DR_TP.df <- read_xlsx("./GCB dataset.xlsx", sheet = 12)  %>%
+  mutate(Date=as.Date(Date, format = "%Y.%m.%d"))
+
+#Plot labels
+treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
+names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
+```
+
+Experimental evolution temperature profiles
+```{r}
+TP1.plot <- EE_TP.df %>%
+  filter(TP == 'TP1') %>%
+  ggplot(aes(x = Time_day, y = Temp_programmed)) +
+  geom_hline(yintercept = 28.38482, linetype = 'solid', color = 'darkred', size = 0.5) +
+  geom_vline(xintercept = 0, linetype = 'dashed', color = 'grey', size = 0.5) +
+  geom_vline(xintercept = 770, linetype = 'dashed', color = 'grey', size = 0.5) +
+  geom_line(size = 0.25) +
+  geom_flame(aes(y2 = 28.38482), show.legend = F) +
+  facet_grid(TP~.) +
+  facet_zoom(xlim = c(39, 49.4), zoom.size = 1) +
+  scale_x_continuous('Time (days)', expand = c(0,0)) +
+  scale_y_continuous('Temperature (°C)', expand = c(0,0), limits = c(26, 34)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.spacing = unit(0.5, "lines"),
+        strip.text.y = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black"))
+TP1.plot
+
+TP_rest.plot <- EE_TP.df %>%
+  filter(TP != 'TP1') %>%
+  mutate(TP = fct_relevel(TP, c("TP5","TP4","TP3", "TP2"))) %>%
+  ggplot(aes(x = Time_day, y = Temp_programmed)) +
+  geom_hline(yintercept = 28.38482, linetype = 'solid', color = 'darkred', size = 0.25) +
+  geom_vline(xintercept = 0, linetype = 'dashed', color = 'grey', size = 0.5) +
+  geom_vline(xintercept = 770, linetype = 'dashed', color = 'grey', size = 0.5) +
+  geom_line(size = 0.25) +
+  geom_flame(aes(y2 = 28.38482), show.legend = F) +
+  facet_grid(TP~.) +
+  scale_x_continuous('Time (days)', expand = c(0,0)) +
+  scale_y_continuous('Temperature (°C)', expand = c(0,0), limits = c(26, 34)) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.spacing = unit(1, "lines"),
+        strip.background = element_blank(),
+        strip.text.y = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black"))
+TP_rest.plot
+
+TP.plots <- ggarrange(TP_rest.plot + rremove('xlab') + rremove('ylab') + rremove('x.text'),
+                      TP1.plot + rremove('xlab') + rremove('ylab'),
+                      heights = c(1, 0.6),
+                      widths = c(1, 1),
+                      nrow = 2,
+                      align = "hv") 
+TP.plots
+
+TP.plots_annot <- annotate_figure(TP.plots,
+                                  bottom = text_grob("Time (days)", color = "black", size = 14, face = "bold"),
+                                  left = text_grob("Temperature (°C)", color = "black", rot = 90, size = 14, face = "bold"),
+              right = text_grob("  Cont-amb           Cont-ele           Fluc-long             Fluc-med          Fluc-short",
+                                color = "black", size = 14, face = "bold", hjust = 0.675, x = 0.25, rot = -90))
+TP.plots_annot
+
+#Save the graph
+ggsave(plot = TP.plots_annot, "EE temperature profiles.pdf", 
+       path = "./", 
+       height = 10,
+       width = 7.5,
+       units = 'in',
+       dpi = 300)
+```
+
+Davies Reef temperature profile
+```{r}
+DR_TP.plot <- DR_TP.df %>%
+  ggplot(aes(x = Date)) +
+  geom_hline(yintercept = 28.38482, linetype = 'dashed', color = 'darkred', size = 0.5) +
+  geom_line(aes(y = Long_term_average), linetype = 'solid', size = 0.5, colour = 'black') + 
+  geom_line(aes(y = Wtemp_2022), linetype = 'solid', size = 0.5, colour = 'darkred') +
+  scale_x_date('Month', expand = c(0,0), date_breaks = "1 month", date_labels = '%b', limits = c(as.Date("2022-01-01"),
+                                                                                                 as.Date("2022-12-31"))) +
+  scale_y_continuous('Temperature (°C)', expand = c(0,0), limits = c(22,31), breaks = 22:30*1) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(size = 0.25, colour = "grey"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"),
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.y = element_text(size = 12, colour = "black"))
+DR_TP.plot
+
+#Save the graph
+ggsave(plot = DR_TP.plot,"Davies Reef temperature profile.pdf",
+       path = "./",
+       height = 7.5,
+       width = 10,
+       units = 'in',
+       dpi = 300)
+```

@@ -1,0 +1,251 @@
+---
+title: "TPA - summary PCA"
+author: "Hugo Scharfenstein"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Load packages
+```{r}
+#Data import packages
+library(readxl)
+#Data wrangling packages
+library(tidyverse)
+library(broom)
+library(rstatix)
+#Data visualisation packages
+library(SciViews)
+library(ggpubr)
+library(factoextra)
+```
+
+Import data
+```{r}
+#Import data into R
+EE_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 1)
+
+TPC_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 9) %>%
+  mutate(Lineage = str_replace(Lineage, "_", "-")) %>%
+  mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
+                                  str_detect(Lineage, 'TP2') ~ 'TP2',
+                                  str_detect(Lineage, 'TP3') ~ 'TP3',
+                                  str_detect(Lineage, 'TP4') ~ 'TP4',
+                                  str_detect(Lineage, 'TP5') ~ 'TP5'))
+
+PCA_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 10)
+
+treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
+names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
+```
+
+Comparison of generation time vs. increase in CTmax for experimental evolution treatments
+```{r}
+#Calculate total generations elapsed for each lineage
+Gen.df2 <- EE_sum.df %>%
+  filter(Time_week <= 110) %>%
+  group_by(Lineage) %>% 
+  mutate(TotGen = sum(Generations)) %>%
+  mutate(TotGen = as.numeric(TotGen)) %>%
+  dplyr::select(c(Lineage, TotGen)) %>% 
+  distinct() %>%
+  mutate_if(is.numeric, ~round(., 1)) %>%
+  ungroup()
+
+#Calculate improvement in CTmax relative to wild-type lineages
+TPC_sum.df2 <- TPC_sum.df %>%
+  dplyr::select(EE_treatment, Lineage, CTmax) %>%
+  mutate(WT_CTmax = mean(CTmax[EE_treatment == 'TP5'])) %>%
+  mutate(Rel_CTmax = CTmax - WT_CTmax) %>%
+  mutate(Rel_CTmax = as.numeric(Rel_CTmax))
+
+#Merge generation time with CTmax
+EE_TPC_sum.df <- left_join(Gen.df2, TPC_sum.df2, by = 'Lineage') %>%
+  dplyr::select(EE_treatment, Lineage, TotGen, CTmax, Rel_CTmax) %>%
+  group_by(EE_treatment) %>%
+  mutate(mean_TotGen = mean(TotGen)) %>%
+  mutate(sd_TotGen = sd(TotGen)) %>%
+  mutate(mean_Rel_CTmax = mean(Rel_CTmax)) %>%
+  mutate(sd_Rel_CTmax = sd(Rel_CTmax)) %>%
+  filter(EE_treatment != 'TP5') %>%
+  ungroup()
+```
+
+Test for significant differences between experimental evolution treatments
+```{r}
+#Check anova assumptions (QQplots to check for normal distribution)
+aov.Rel_CTmax <- aov(Rel_CTmax ~ EE_treatment, data = EE_TPC_sum.df)
+qqnorm(aov.Rel_CTmax$residuals) 
+qqline(aov.Rel_CTmax$residuals)
+
+#Check anova assumptions (boxplots to check for equal variance)
+boxplot(Rel_CTmax ~ EE_treatment, xlab='EE_treatment', ylab='Relative CTmax', data = EE_TPC_sum.df)
+
+#Check for significant differences between experimental evolution treatments (using Tukey’s HSD)
+tukey_hsd.Rel_CTmax <- aov(Rel_CTmax ~ EE_treatment, data = EE_TPC_sum.df) %>%
+  tukey_hsd() %>%
+  filter(p.adj < 0.05)
+```
+
+Plot
+```{r}
+GenCTmax.plot <- EE_TPC_sum.df %>%
+  ggplot(aes(x = mean_TotGen, y = mean_Rel_CTmax)) +
+  geom_linerange(aes(xmin = mean_TotGen - sd_TotGen, xmax = mean_TotGen + sd_TotGen, colour = EE_treatment), size = 0.4) +
+  geom_linerange(aes(ymin = mean_Rel_CTmax - sd_Rel_CTmax, ymax = mean_Rel_CTmax + sd_Rel_CTmax, colour = EE_treatment), size = 0.4) +
+  geom_hline(aes(yintercept = 0), colour="black", size = 0.5, linetype = 'dashed') +
+  geom_point(aes(fill = EE_treatment), pch = 21, size = 3) +
+  scale_x_continuous(expression(bold(Total~generations))) +
+  scale_y_continuous(expression(bold(Change~CT[max]~(relative~to~Cont-amb)))) + 
+  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual('Experimental evolution treatment', labels = treatment.labs,
+                    values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top', 
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(colour = F)
+GenCTmax.plot
+```
+
+PCA for ambient temperature
+```{r}
+#Prepare matrix and metdata for PCA
+PCA.sum.matrix_27C <- PCA_sum.df %>%
+  filter(Growth_temperature == 27) %>%
+  dplyr::select(-EE_treatment) %>%
+  unite(Temp_lineage, c("Growth_temperature", "Lineage")) %>%
+  column_to_rownames(var = "Temp_lineage") %>%
+  na.omit()
+
+PCA.sum.group1_27C <- PCA_sum.df %>% filter(Growth_temperature == 27) %>% na.omit() %>% pull(EE_treatment)
+PCA.sum.group2_27C <- PCA_sum.df %>% filter(Growth_temperature == 27) %>% na.omit() %>% pull(Growth_temperature)
+PCA.sum.group3_27C <- PCA_sum.df %>% filter(Growth_temperature == 27) %>% na.omit() %>% 
+  unite(Temp_treat, c("Growth_temperature", "EE_treatment")) %>% pull(Temp_treat)
+
+#PCA
+PCA.sum_27C <- prcomp(PCA.sum.matrix_27C, scale = T)
+
+#Plot
+PCA.sum_biplot_27C <- fviz_pca_biplot(PCA.sum_27C, repel = TRUE,
+                             geom.ind = "point", pointshape=19, pointsize = 0.1, mean.point = FALSE,
+                             fill.ind = PCA.sum.group3_27C, col.ind = PCA.sum.group3_27C, palette = c(
+                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
+                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
+                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                             alpha.var ="contrib",  col.var = "black",
+                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
+  labs(title = "", x = "PC1: 29.4%", y = "PC2: 26.7%") + #Labs 27C
+  geom_point(aes(colour = PCA.sum.group1_27C, shape = PCA.sum.group2_27C), size = 2) +
+  scale_colour_discrete(labels = treatment.labs, type = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                        limits = c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        title = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(alpha = F,
+         fill = F,
+         shape = F,
+         #shape = guide_legend(title = "Temperature (°C)"),
+         color = guide_legend(title = "Experimental evolution treatment", override.aes = list(linetype = 0, fill = "white")))
+PCA.sum_biplot_27C
+```
+
+PCA for elevated temperature
+```{r}
+#Prepare matrix and metdata for PCA
+PCA.sum.matrix_31C <- PCA_sum.df %>%
+  filter(Growth_temperature == 31) %>%
+  dplyr::select(-EE_treatment) %>%
+  unite(Temp_lineage, c("Growth_temperature", "Lineage")) %>%
+  column_to_rownames(var = "Temp_lineage") %>%
+  na.omit()
+
+PCA.sum.group1_31C <- PCA_sum.df %>% filter(Growth_temperature == 31) %>% na.omit() %>% pull(EE_treatment)
+PCA.sum.group2_31C <- PCA_sum.df %>% filter(Growth_temperature == 31) %>% na.omit() %>% pull(Growth_temperature)
+PCA.sum.group3_31C <- PCA_sum.df %>% filter(Growth_temperature == 31) %>% na.omit() %>% 
+  unite(Temp_treat, c("Growth_temperature", "EE_treatment")) %>% pull(Temp_treat)
+
+#PCA
+PCA.sum_31C <- prcomp(PCA.sum.matrix_31C, scale = T)
+
+#Plot
+PCA.sum_biplot_31C <- fviz_pca_biplot(PCA.sum_31C, repel = TRUE,
+                             geom.ind = "point", pointshape=19, pointsize = 0.1, mean.point = FALSE,
+                             fill.ind = PCA.sum.group3_31C, col.ind = PCA.sum.group3_31C, palette = c(
+                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
+                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
+                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                             alpha.var ="contrib",  col.var = "black",
+                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
+  labs(title = "", x = "PC1: 44.7%", y = "PC2: 18.6%") + #Labs 31C
+  geom_point(aes(colour = PCA.sum.group1_31C, shape = PCA.sum.group2_31C), size = 2) +
+  scale_colour_discrete(labels = treatment.labs, type = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                        limits = c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        title = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(alpha = F,
+         fill = F,
+         shape = F,
+         #shape = guide_legend(title = "Temperature (°C)"),
+         color = guide_legend(title = "Experimental evolution treatment", override.aes = list(linetype = 0, fill = "white")))
+PCA.sum_biplot_31C
+```
+
+Combine PCAs
+```{r}
+PCA.plots <- ggarrange(PCA.sum_biplot_27C,
+                       PCA.sum_biplot_31C,
+                       common.legend = TRUE,
+                       labels = c("A", "B"),
+                       heights = c(1, 1),
+                       widths = c(1, 1),
+                       ncol = 1,
+                       align = "hv") 
+PCA.plots
+```
+
+Export plot
+```{r}
+ggsave(plot = PCA.plots, "TPA - PCA summary.pdf", 
+       path = "./",
+       width = 10,
+       height = 10,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+
+ggsave(plot = GenCTmax.plot, "TPA - generations v CTmax.pdf", 
+       path = "./",
+       width = 10,
+       height = 7.5,
+       units = 'in',
+       dpi = 300,
+       device = cairo_pdf)
+```
