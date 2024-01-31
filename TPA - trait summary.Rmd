@@ -22,9 +22,9 @@ library(factoextra)
 Import data
 ```{r}
 #Import data into R
-EE_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 1)
+EE_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 1)
 
-TPC_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 9) %>%
+TPC_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 9) %>%
   mutate(Lineage = str_replace(Lineage, "_", "-")) %>%
   mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
                                   str_detect(Lineage, 'TP2') ~ 'TP2',
@@ -32,7 +32,7 @@ TPC_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 9) %>%
                                   str_detect(Lineage, 'TP4') ~ 'TP4',
                                   str_detect(Lineage, 'TP5') ~ 'TP5'))
 
-PCA_sum.df <- read_xlsx("./GCB dataset.xlsx", sheet = 10)
+PCA_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 10)
 
 treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')

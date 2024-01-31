@@ -29,10 +29,10 @@ library(factoextra)
 Import data
 ```{r}
 #Optical density (OD) data from TPA
-TPA.df <- read_xlsx("./GCB dataset.xlsx", sheet = 3)
+TPA.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 3)
 
 #OD data for calibration curves
-CC.df <- read_xlsx("./GCB dataset.xlsx", sheet = 2)
+CC.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 2)
 
 #Re-level temperature treatments
 TPA.df$Growth_temperature <- ordered(TPA.df$Growth_temperature, levels = c('21', '23', '25', '27', '29', '31'))

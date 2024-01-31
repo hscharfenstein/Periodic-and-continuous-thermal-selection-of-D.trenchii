@@ -18,7 +18,7 @@ library(ggpubr)
 Import data
 ```{r}
 #Import data into R
-EE.df <- read_xlsx("./GCB dataset.xlsx", sheet = 1)
+EE.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 1)
 
 #Labels for facets
 treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')

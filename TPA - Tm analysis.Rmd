@@ -28,7 +28,7 @@ library(purrr)
 
 Import data and cleanup
 ```{r}
-TM.df <- read_xlsx("./GCB dataset.xlsx", sheet = 6) %>%
+TM.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 6) %>%
   na.omit() %>%
   mutate(Relative_FvFm = case_when(Relative_FvFm == 0 ~ 0.001, 
                                    TRUE ~ Relative_FvFm)) %>%

@@ -19,7 +19,7 @@ library(respR)
 Import data
 ```{r}
 #Import raw O2 progression data into R
-PR.df <- read_xlsx("./GCB dataset.xlsx", sheet = 7) %>%
+PR.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 7) %>%
   mutate(phase = Phase) %>%
   mutate(time = Time_seconds) %>%
   mutate(oxygen = O2) %>%
@@ -561,9 +561,9 @@ Pdf_xl <- Pdf_final %>%
 Rd, Pnet and Pgross plots
 ```{r}
 #Respiration plots
-Rd.df_import <- read_xlsx("/Users/hugo/Documents/Melbourne PhD/Experimental work/Chapter 3/TPA/TPA - Rd & Pnet rates.xlsx", sheet = 1) %>%
+Rd.df_import <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 8) %>%
   filter(Lineage != 'Blank') %>%
-  mutate(Rate_type = 'respiration')
+  filter(Rate_type == 'respiration')
 
 tukey_hsd.Rd.27C <- aov(pmolO2.min.cell ~ EE_treatment, data = Rd.df_import[Rd.df_import$Growth_temperature == 27, ]) %>%
   tukey_hsd() %>%
@@ -603,9 +603,9 @@ Rd.boxplots <- Rd.df_import %>%
 Rd.boxplots
 
 #Net photosynthesis plots
-Pnet.df_import <- read_xlsx("/Users/hugo/Documents/Melbourne PhD/Experimental work/Chapter 3/TPA/TPA - Rd & Pnet rates.xlsx", sheet = 2) %>%
+Pnet.df_import <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 8) %>%
   filter(Lineage != 'Blank') %>%
-  mutate(Rate_type = 'photosynthesis') %>%
+  filter(Rate_type == 'photosynthesis') %>%
   filter(!(Growth_temperature == 31 & Lineage %in% c('TP1-3', 'TP2-2', 'TP3-2', 'TP4-3', 'TP5-1'))) %>%
   filter(!(Growth_temperature == 29 & Lineage %in% c('TP1-2', 'TP2-1', 'TP4-3', 'TP4-5', 'TP5-1', 'TP5-5'))) %>%
   filter(!(Growth_temperature == 27 & Lineage %in% c('TP2-6')))
