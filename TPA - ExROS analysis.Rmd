@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -19,9 +19,9 @@ library(SciViews)
 library(ggpubr)
 ```
 
-Import data
+# Import data
 ```{r}
-ExROS.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 5)
+ExROS.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 6)
 
 #Relevel nutrient treatments
 ExROS.df$Growth_temperature <- ordered(ExROS.df$Growth_temperature, levels = c('27', '29', '31'))
@@ -35,7 +35,7 @@ treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-ExROS analyses
+# ExROS analyses
 ```{r}
 #Convert OD data to cell density for subsequent normalisation
 ExROS.df <- ExROS.df %>%
@@ -67,7 +67,7 @@ ExROS.df3 <- ExROS.df2 %>%
   ungroup()
 ```
 
-Test for significant differences between experimental evolution treatments (ExROS)
+# Test for significant differences between experimental evolution treatments (ExROS)
 ```{r}
 #Check anova assumptions (QQplots to check for normal distribution)
 aov.ExROS_27C <- aov(ExROS_normalised ~ EE_treatment, data = ExROS.df2[ExROS.df2$Growth_temperature == 27, ])
@@ -111,7 +111,7 @@ tukey_hsd.ExROS <- rbind(tukey_hsd.ExROS27C, tukey_hsd.ExROS29C) %>%
   mutate(Growth_temperature = as.factor(Growth_temperature))
 ```
 
-Test for significant differences between experimental evolution treatments (delta ExROS)
+# Test for significant differences between experimental evolution treatments (delta ExROS)
 ```{r}
 #Check anova assumptions
 aov.Delta_ExROS <- aov(Delta_ExROS ~ EE_treatment,  data = ExROS.df3)
@@ -125,7 +125,7 @@ tukey_hsd.Delta_ExROS <- aov(Delta_ExROS ~ EE_treatment, data = ExROS.df3) %>%
   filter(p.adj < 0.05)
 ```
 
-Plots of ExROS analyses
+# Plots of ExROS analyses
 ```{r}
 #Plot ExROS
 ExROS.plot <- ExROS.df2 %>%
@@ -182,7 +182,7 @@ Delta_ExROS.plot <- ExROS.df3 %>%
 Delta_ExROS.plot
 ```
 
-Combine plots
+# Combine plots
 ```{r}
 ExROS.plots <- cowplot::plot_grid(ExROS.plot + rremove('xlab'),
                                  Delta_ExROS.plot + rremove('xlab'),
@@ -200,7 +200,7 @@ ExROS.plots.annot <- annotate_figure(ExROS.plots,
 ExROS.plots.annot
 ```
 
-Save plots
+# Save plots
 ```{r}
 ggsave(plot = ExROS.plots.annot, "TPA - ExROS plots.pdf", 
        path = "./",
@@ -211,7 +211,7 @@ ggsave(plot = ExROS.plots.annot, "TPA - ExROS plots.pdf",
        device = cairo_pdf)
 ```
 
-Export data
+# Export data
 ```{r}
 ExROS.data_xl <- ExROS.df2 %>%
   filter(Growth_temperature == 27 | Growth_temperature == 31) %>%

@@ -5,7 +5,7 @@ date: '`r Sys.Date()`'
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -20,14 +20,19 @@ library(rTPC)
 library(nls.multstart)
 library(MuMIn)
 library(nlsMicrobio)
+library(minpack.lm)
+library(car)
 #Data visualisation packages
 library(SciViews)
 library(ggpubr)
 library(factoextra)
 ```
 
-Import data
+# Import data
 ```{r}
+#Set seed for reproducibility
+set.seed(1234567)
+
 #Optical density (OD) data from TPA
 TPA.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 3)
 
@@ -46,7 +51,7 @@ treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-Calibration curves visualisation
+# Calibration curves visualisation
 ```{r}
 #In vivo fluorescence vs. cell density
 IVF.plot <- CC.df %>%
@@ -144,7 +149,7 @@ CC.plots <- ggarrange(IVF.plot + rremove('ylab'),
 CC.plots
 ```
 
-Convert OD data to cell density measurements
+# Convert OD data to cell density measurements
 ```{r}
 #Subtract IMK blank to OD_670nm values (accounts for OD of IMK and plate)
 TPA.df <- TPA.df %>%
@@ -163,7 +168,7 @@ TPA.df <- TPA.df %>%
                     ))
 ```
 
-Visualise growth curves
+# Visualise growth curves
 ```{r}
 #Growth cuvres for IMK replete treatment
 GC.plot <- TPA.df %>%
@@ -174,12 +179,12 @@ GC.plot <- TPA.df %>%
   geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 27), aes(xintercept = 24), colour="black", size = 0.5, linetype = 'dashed') + 
   geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 29), aes(xintercept = 22), colour="black", size = 0.5, linetype = 'dashed') + 
   geom_vline(data=filter(TPA.df, Growth_cycle == 1 & Growth_temperature == 31), aes(xintercept = 18), colour="black", size = 0.5, linetype = 'dashed') +
-  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 21), aes(xintercept = 18), colour="grey", size = 0.5, linetype = 'dashed') +
-  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 23), aes(xintercept = 14), colour="grey", size = 0.5, linetype = 'dashed') +
-  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 25), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
-  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 27), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
-  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 29), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
-  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 31), aes(xintercept = 10), colour="grey", size = 0.5, linetype = 'dashed') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 21), aes(xintercept = 18), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 23), aes(xintercept = 14), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 25), aes(xintercept = 10), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 27), aes(xintercept = 10), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 29), aes(xintercept = 10), colour="black", size = 0.5, linetype = 'solid') +
+  geom_vline(data=filter(TPA.df, Growth_cycle == 2 & Growth_temperature == 31), aes(xintercept = 10), colour="black", size = 0.5, linetype = 'solid') +
   geom_hline(aes(yintercept = 100000), colour="grey", size = 0.5, linetype = 'solid') + 
   geom_smooth(aes(fill = EE_treatment), method=mgcv::gam, formula = y~s(x, bs = "cs", k = 4), se=T, size=0.75, alpha = 0.25) +
   geom_point(size=3, pch=20, shape=0) +
@@ -209,9 +214,9 @@ GC.plot <- TPA.df %>%
 GC.plot
 ```
 
-Growth rate calculation
+# Growth rate calculation
 
-Prepare data frames for growth model fitting
+## Prepare data frames for growth model fitting
 ```{r}
 #Growth cycle 1
 GC1.df <- TPA.df %>%
@@ -235,7 +240,7 @@ GC2.df <- rbind(GC2.df, GC2_21C.df) %>%
   ungroup()
 ```
 
-Define the equations to be used for modelling of growth rates
+## Define the equations to be used for modelling of growth rates
 ```{r}
 #Gompertz growth models
 gompertz_calc <- function(time, y0, mumax, K, lambda){
@@ -266,7 +271,7 @@ y <- y0 + mumax * time/log(10) + log10(exp(-mumax * time) * (1 - exp(-mumax * la
 #Equations were obtained from: https://github.com/padpadpadpad/Padfield_2019_ISME_bact_phage_temperature/blob/master/scripts/growth_curve_models.R
 ```
 
-Define the starting parameters
+## Define the starting parameters
 ```{r}
 #Starting cell density (y0)
 y0 <- GC2.df %>% 
@@ -289,7 +294,7 @@ K <- GC2.df %>%
   distinct()
 ```
 
-Option 1: parametric nonlinear growth model fitting using nls.multstart
+## Option 1: parametric nonlinear growth model fitting using nls.multstart
 ```{r}
 #Fit various growth models
 GrowthR.nls_fits <- GC2.df %>%
@@ -301,7 +306,7 @@ GrowthR.nls_fits <- GC2.df %>%
   nest(data = c(Time_day, log10CellD, sd_log10CellD)) %>%
   mutate(gompertz = map(data, ~ nls_multstart(log10CellD ~ gompertz_calc(time = Time_day, y0, mumax, K, lambda),
                      data = .x,
-                     iter = 250,
+                     iter = 500,
                      start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min, lambda = 1), #Adjust starting params here
                      start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max, lambda = 18), #Adjust starting params here
                      supp_errors = 'Y',
@@ -312,7 +317,7 @@ GrowthR.nls_fits <- GC2.df %>%
                      modelweights = 1/sd_log10CellD)),
          buchanan = map(data, ~ nls_multstart(log10CellD ~ buchanan_calc(time = Time_day, y0, mumax, K, lambda),
                      data = .x,
-                     iter = 250,
+                     iter = 500,
                      start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min, lambda = 1), #Adjust starting params here
                      start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max, lambda = 18), #Adjust starting params here
                      supp_errors = 'Y',
@@ -323,7 +328,7 @@ GrowthR.nls_fits <- GC2.df %>%
                      modelweights = 1/sd_log10CellD)),
   buchanan_no_lag = map(data, ~ nls_multstart(log10CellD ~ buchanan_calc_no_lag(time = Time_day, y0, mumax, K),
                      data = .x,
-                     iter = 250,
+                     iter = 500,
                      start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min), #Adjust starting params here
                      start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max), #Adjust starting params here
                      supp_errors = 'Y',
@@ -334,7 +339,7 @@ GrowthR.nls_fits <- GC2.df %>%
                      modelweights = 1/sd_log10CellD)),
          baranyi = map(data, ~ nls_multstart(log10CellD ~ baranyi_calc(time = Time_day, y0, mumax, K, lambda),
                      data = .x,
-                     iter = 250,
+                     iter = 500,
                      start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min, lambda =1), #Adjust starting params here
                      start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max, lambda = 18), #Adjust starting params here
                      supp_errors = 'Y',
@@ -345,7 +350,7 @@ GrowthR.nls_fits <- GC2.df %>%
                      modelweights = 1/sd_log10CellD)),
     baranyi_no_K = map(data, ~ nls_multstart(log10CellD ~ baranyi_calc_no_K(time = Time_day, y0, mumax, lambda),
                      data = .x,
-                     iter = 250,
+                     iter = 500,
                      start_lower = c(y0 = y0$y0_min, mumax = -0.15, lambda =1), #Adjust starting params here
                      start_upper = c(y0 = y0$y0_max, mumax = 0.3, lambda = 18), #Adjust starting params here
                      supp_errors = 'Y',
@@ -356,7 +361,7 @@ GrowthR.nls_fits <- GC2.df %>%
                      modelweights = 1/sd_log10CellD)),
   baranyi_no_lag = map(data, ~ nls_multstart(log10CellD ~ baranyi_calc_no_lag(time = Time_day, y0, mumax, K),
                      data = .x,
-                     iter = 250,
+                     iter = 500,
                      start_lower = c(y0 = y0$y0_min, mumax = -0.15, K = K$K_min), #Adjust starting params here
                      start_upper = c(y0 = y0$y0_max, mumax = 0.3, K = K$K_max), #Adjust starting params here
                      supp_errors = 'Y',
@@ -395,7 +400,14 @@ GrowthR.nls_CI <- GrowthR.nls_stack %>%
   select(-fit)
 
 #Merge confidence intervals with parameters
-GrowthR.nls_CI_PMS <- merge(GrowthR.nls_params, GrowthR.nls_CI, by = intersect(names(GrowthR.nls_params), names(GrowthR.nls_CI)))
+GrowthR.nls_CI_PMS <- merge(GrowthR.nls_params, GrowthR.nls_CI, by = intersect(names(GrowthR.nls_params), names(GrowthR.nls_CI))) %>%
+  mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error'))
 
 #Get predictions 
 GrowthR.nls_npreds <- tibble(Time_day = seq(min(GC2.df$Time_day), max(GC2.df$Time_day), length.out = 200))
@@ -447,6 +459,11 @@ GrowthR.nls_params_plot <- GrowthR.nls_CI_PMS %>%
   geom_linerange(aes(Lineage, ymin = conf.low, ymax = conf.high)) +
   facet_wrap(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs), ncol = 2) +
   scale_y_continuous(limits = c(-0.2, 0.4)) +
+  scale_x_discrete(labels = c('Fluc-short_R1', 'Fluc-short_R2', 'Fluc-short_R3', 'Fluc-short_R4', 'Fluc-short_R5', 'Fluc-short_R6',
+                              'Fluc-med_R1', 'Fluc-med_R2', 'Fluc-med_R3', 'Fluc-med_R4', 'Fluc-med_R5', 'Fluc-med_R6',
+                              'Fluc-long_R1', 'Fluc-long_R2', 'Fluc-long_R3', 'Fluc-long_R4', 'Fluc-long_R5', 'Fluc-long_R6',
+                              'Cont-ele_R1', 'Cont-ele_R2', 'Cont-ele_R3', 'Cont-ele_R4', 'Cont-ele_R5', 'Cont-ele_R6',
+                              'Cont-amb_R1', 'Cont-amb_R2', 'Cont-amb_R3', 'Cont-amb_R4', 'Cont-amb_R5', 'Cont-amb_R6')) +
   coord_flip() +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
@@ -460,7 +477,7 @@ GrowthR.nls_params_plot <- GrowthR.nls_CI_PMS %>%
         axis.text.x = element_text(size = 12, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
-  labs(x = 'Lineage', y = 'Parameter estimate (µmax)', colour = 'Model')
+  labs(x = 'Lineage', y = 'Parameter estimate (µmax)', colour = 'Model', shape = 'Experimental evolution treatment')
 GrowthR.nls_params_plot
 #Baranyi, baranyi_no_lag and gompertz models provide poor mumax estimates, especially at 21 and 31°C
 
@@ -495,16 +512,112 @@ GrowthR.df <- merge(GrowthR.nls_CI_PMS, GrowthR.nls_info,
   ungroup() 
 ```
 
-Option 2: two point calculation of growth rates
+## Option 2: two point calculation of growth rates
 ```{r}
-GrowthR_twop.df <- GC2.df %>%
+#Growth cycle 1
+GrowthR_twop_GC1.df <- GC1.df %>%
+  group_by(Growth_temperature, Lineage) %>%
+  mutate(Timepoint = case_when(CellD == min(CellD) ~ 'start',
+                               CellD == max(CellD) ~ 'end',
+                               TRUE ~ 'remove')) %>%
+  filter(Timepoint != 'remove') %>%
+  select(Growth_temperature, EE_treatment, Lineage, Time_day, CellD, Timepoint)
+
+GrowthR_twop_GC1_start.df <- GrowthR_twop_GC1.df %>%
+  filter(Timepoint == 'start') %>%
+  rename(Time_day_start = Time_day,
+         CellD_start = CellD) %>%
+  select(-Timepoint)
+
+GrowthR_twop_GC1_end.df <- GrowthR_twop_GC1.df %>%
+  filter(Timepoint == 'end') %>%
+  rename(Time_day_end = Time_day,
+         CellD_end = CellD) %>%
+  select(-Timepoint)
+
+GrowthR_twop_GC1.df2 <- left_join(GrowthR_twop_GC1_start.df, GrowthR_twop_GC1_end.df) %>%
+  group_by(Growth_temperature, Lineage) %>%
+  filter(!(Growth_temperature %in% 21 & Lineage %in% 'TP4_3' & Time_day_end %in% 39)) %>%
+  filter(!(Growth_temperature %in% 23 & Lineage %in% 'TP2_1' & Time_day_start %in% 1)) %>%
+  mutate(Delta_t = Time_day_end-Time_day_start) %>%
+  mutate(mu = (ln(CellD_end)-ln(CellD_start))/Delta_t) %>%
+  mutate(div_day = mu/ln(2)) %>%
+  mutate(gen_time = 1/div_day) %>%
+  mutate(generations = case_when(Growth_temperature == 21 ~ 30/gen_time,
+                                 Growth_temperature == 23 ~ 26/gen_time,
+                                 Growth_temperature == 25 ~ 26/gen_time,
+                                 Growth_temperature == 27 ~ 24/gen_time,
+                                 Growth_temperature == 29 ~ 22/gen_time,
+                                 Growth_temperature == 31 ~ 18/gen_time)) %>%
+  distinct() %>%
+  ungroup() %>%
+  group_by(Growth_temperature, EE_treatment) %>%
+  mutate(median_mu = median(mu)) %>%
+  mutate(sd_mu = sd(mu)) %>%
+  mutate(median_div_day = median(div_day)) %>%
+  mutate(sd_div_day = sd(div_day)) %>%
+  mutate(median_gen_time = median(gen_time)) %>%
+  mutate(sd_gen_time = sd(gen_time)) %>%
+  mutate(median_generations = median(generations)) %>%
+  mutate(sd_generations = sd(generations)) %>%
+  mutate(Lineage = case_when(str_detect(Lineage, "_1") ~ '1',
+                             str_detect(Lineage, "_2") ~ '2',
+                             str_detect(Lineage, "_3") ~ '3',
+                             str_detect(Lineage, "_4") ~ '4',
+                             str_detect(Lineage, "_5") ~ '5',
+                             str_detect(Lineage, "_6") ~ '6',
+                             TRUE ~ 'Error')) %>%
+  mutate(EE_treatment = case_when(str_detect(EE_treatment, 'TP1') ~ 'Fluc-short',
+                                  str_detect(EE_treatment, 'TP2') ~ 'Fluc-med',
+                                  str_detect(EE_treatment, 'TP3') ~ 'Fluc-long',
+                                  str_detect(EE_treatment, 'TP4') ~ 'Cont-ele',
+                                  str_detect(EE_treatment, 'TP5') ~ 'Cont-amb',
+                                  TRUE ~ 'ERROR')) %>%
+  select(Growth_temperature, EE_treatment, median_mu, sd_mu, median_div_day, sd_div_day, median_gen_time, sd_gen_time, 
+         median_generations, sd_generations) %>%
+  distinct()
+
+#Plot for growth cycle 1
+Gen_GC1.plot <- GrowthR_twop_GC1.df2 %>%
+  ggplot(aes(colour = EE_treatment, fill = EE_treatment)) +
+  geom_point(aes(x = Growth_temperature, y = median_generations), 
+             position=position_dodge(width = 1),
+             size = 1.5) +
+  geom_linerange(aes(x = Growth_temperature,
+                     ymin = median_generations-sd_generations,
+                     ymax = median_generations+sd_generations),
+                 position=position_dodge(width = 1)) +
+  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                      guide = guide_legend(title.position="top", nrow = 1)) +
+  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  #facet_wrap(~Growth_temperature) +
+  #coord_flip() +
+  labs(x = 'Growth temperature (°C)', y = 'Generations elapsed', colour = 'Experimental evolution treatment') +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size=14, face="bold"),
+        strip.text.y = element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top", 
+        legend.direction = "horizontal",
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"),
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = FALSE)
+Gen_GC1.plot
+
+#Growth cycle 2 (rough estimate, for sanity check of previously calculated growth rates)
+GrowthR_twop.df2 <- GC2.df %>%
   group_by(Growth_temperature, Lineage) %>%
   mutate(Tstart = min(Time_day)) %>%
   mutate(Tend = max(Time_day)) %>%
   mutate(Timepoint = case_when(Time_day == min(Time_day) ~ 'start',
                                Time_day == max(Time_day) ~ 'end')) %>%
   na.omit() %>%
-  mutate(mumax = (ln(CellD[Timepoint == 'end']) - ln(CellD[Timepoint == 'start']))/(Tend - Tstart)) %>%
+  mutate(mumax = ((ln(CellD[Timepoint == 'end'])/ln(CellD[Timepoint == 'end'])))/(Tend - Tstart)) %>%
   select(Growth_temperature, EE_treatment, Lineage, mumax) %>%
   distinct() %>%
   ungroup() %>%
@@ -514,12 +627,13 @@ GrowthR_twop.df <- GC2.df %>%
   mutate(Model = 'twopoint')
 ```
 
-Visualise growth rates
+## Visualise growth rates
 ```{r}
 GrowthR.plot <- GrowthR.df %>% #Change this to 'GrowthR_twop.df' to compare mumax from model fitting and two point calculation
   mutate(Growth_temperature = as.numeric(as.character(Growth_temperature))) %>%
   ggplot(aes(x = Growth_temperature, y = ave_mumax, fill = EE_treatment, colour = EE_treatment)) +
-  geom_linerange(aes(x = Growth_temperature, ymin = ave_mumax-sd_mumax, ymax = ave_mumax+sd_mumax), position=position_dodge(width = 1)) +
+  geom_linerange(aes(x = Growth_temperature, ymin = ave_mumax-sd_mumax, ymax = ave_mumax+sd_mumax),
+                   position=position_dodge(width = 1)) +
   geom_point(position=position_dodge(width = 1), size = 1.5, pch = 20, shape = 0) +
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   scale_x_continuous('Temperature (ºC)', expand =c(0,0),limits = c(20,32)) +
@@ -542,9 +656,9 @@ GrowthR.plot <- GrowthR.df %>% #Change this to 'GrowthR_twop.df' to compare muma
 GrowthR.plot
 ```
 
-Thermal performance curve (TPC) fitting
+# Thermal performance curve (TPC) fitting
 
-Fit TPCs to each lineage using previously calculated growth rates
+## Fit TPCs to each lineage using previously calculated growth rates
 ```{r}
 #Prepare df for TPC fitting
 TPC.df <- GrowthR.df %>%
@@ -561,7 +675,7 @@ TPC.fits <- TPC.df %>%
   nest(data = c(Growth_temperature, mumax, sd_mumax)) %>%
   mutate(thomas2017 = map(data, ~nls_multstart(mumax~thomas_2017(temp = Growth_temperature, a, b, c, d, e),
                         data = .x,
-                        iter = c(3,3,3,3,3),
+                        iter = c(4,4,4,4,4),
                         start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017') - 1,
                         start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017') + 1,
                         lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
@@ -591,7 +705,7 @@ TPC.fits <- TPC.df %>%
                         modelweights = 1/sd_mumax),
          kamykowski = map(data, ~nls_multstart(mumax~kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
                         data = .x,
-                        iter = c(3,3,3,3,3),
+                        iter = c(4,4,4,4,4),
                         start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985') - 1,
                         start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985') + 1,
                         lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
@@ -610,31 +724,53 @@ TPC.fits <- TPC.df %>%
                         convergence_count = FALSE),
                         modelweights = 1/sd_mumax))
 
-
 #Stack models
-GrowthR.stack <- dplyr::select(TPC.fits, -data) %>%
+TPC.stack <- dplyr::select(TPC.fits, -data) %>%
   pivot_longer(., names_to = 'model_name', values_to = 'fit', thomas2017:joehnk)
 
 #Get parameters provided by models
-GrowthR.params_model <- GrowthR.stack %>%
+TPC.params <- TPC.stack %>%
   mutate(., est = map(fit, tidy)) %>%
   dplyr::select(-fit) %>%
   unnest(est)
 
 #Get predictions using augment
-GrowthR.newdata <- tibble(Growth_temperature = seq(min(TPC.df$Growth_temperature), max(TPC.df$Growth_temperature), length.out = 200))
-GrowthR.preds_mult <- GrowthR.stack %>%
-  mutate(., rate_preds = map(fit, augment, newdata = GrowthR.newdata)) %>%
+TPC.newdata <- tibble(Growth_temperature = seq(min(TPC.df$Growth_temperature), max(TPC.df$Growth_temperature), length.out = 100))
+TPC.preds <- TPC.stack %>%
+  mutate(., rate_preds = map(fit, augment, newdata = TPC.newdata)) %>%
   dplyr::select(-fit) %>%
-  unnest(rate_preds)
+  unnest(rate_preds) %>%
+  mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error')) %>%
+  select(EE_treatment, Lineage, Replicate, model_name, Growth_temperature, .fitted)
+
+#Facet label names for TPC plots
+treatment.labs <- c("Fluc-short", "Fluc-med", "Fluc-long", "Cont-ele", "Cont-amb")
+names(treatment.labs) <- c("TP1", "TP2", "TP3", "TP4", "TP5")
+
+#Prepare TPC.df2 for plotting
+TPC.df2 <- TPC.df %>%
+  mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error')) %>%
+  select(Growth_temperature, EE_treatment, Lineage, Replicate, mumax, ave_mumax, sd_mumax)
 
 #Visualize TPCs
-TPC.plot <- GrowthR.preds_mult %>%
+TPC.plot <- TPC.preds %>%
   group_by(EE_treatment, Growth_temperature) %>%
   ggplot(aes()) +
-  geom_point(aes(Growth_temperature, mumax), TPC.df, size = 1.5, pch = 20, shape = 0) +
+  geom_point(aes(Growth_temperature, mumax, group = interaction(Lineage, Replicate)), TPC.df2, size = 1.5, pch = 20, shape = 0) +
   geom_line(aes(Growth_temperature, .fitted, colour = model_name)) +
-  facet_wrap(.~Lineage, ncol = 6) +
+  facet_grid(EE_treatment~Replicate, labeller = labeller(EE_treatment = treatment.labs)) +
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
@@ -646,52 +782,63 @@ TPC.plot <- GrowthR.preds_mult %>%
         strip.text.y=element_text(size=14, face="bold"),
         legend.title = element_text(size = 14, face = "bold"),
         legend.text = element_text(size = 12),
-        legend.position = "right",
+        legend.position = "top",
         title = element_text(size = 14, face = "bold"),
         axis.line = element_line(colour = "black"),
         axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
         axis.text.x = element_text(size = 12, colour = "black"), 
         axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
-  labs(title = 'Thermal performance curves', colour = "Model") +
+  labs(colour = "Model") +
   guides(fill = FALSE)
 TPC.plot
-#All models provide very similar fits, except kamykowski for TP4_1,2,3 & 5 (maybe exclude this model as it could lead to overestimation of Topt)
+#All models provide very similar fits, except kamykowski for TP4_1,2,3 & 5
 ```
 
-TPC model selection
+## TPC model selection
 ```{r}
 #Calculate measures of relative model fit (AIC, BIC, AICc)
-GrowthR.ic <- GrowthR.stack %>%
+TPC.model_ic <- TPC.stack %>%
   mutate(., info = map(fit, glance),
          AICc =  map_dbl(fit, MuMIn::AICc)) %>%
-  dplyr::select(-fit) %>%
+  #dplyr::select(-fit) %>%
   unnest(info) %>%
-  dplyr::select(model_name, sigma, AIC, AICc, BIC, df.residual)
+  dplyr::select(model_name, fit, sigma, AIC, AICc, BIC, df.residual)
 
 #Filter for best model fit
-GrowthR.best_model <- GrowthR.ic %>%
-  filter(AICc == min(AICc)) %>% 
+TPC.model_selec <- TPC.model_ic %>%
+  filter(AICc - min(AICc) <= 2) %>% #Filter out model averages that are less than Δ2AICc of the best model
+  #filter(AICc == min(AICc)) %>% 
   dplyr::select(Lineage, model_name) %>%
   ungroup() %>%
   dplyr::select(-Lineage) %>%
   count(model_name)
 #No obvious distinction of model per EE_treatment
-#Thomas2017, joehnk and kamykowski models provide best fits in a relatively equal number of cases, suggesting some model uncertainty
+#Joehnk followed by kamykowski and thomas2017 models provide best fits in a relatively equal number of cases, suggesting some model uncertainty
 #Proceed with model averaging to avoid biases in TPC parameters linked to model selection
+```
 
-#Calculate average of models
-GrowthR.ic_ave <- GrowthR.ic %>%
-  filter(model_name %in% c('thomas2017', 'joehnk', 'kamykowski')) %>%
+## TPC model averaging
+```{r}
+#Get weights of individual models
+TPC.model_weights <- TPC.model_ic %>%
+  filter(model_name %in% c('thomas2017', 'joehnk', 'kamykowski')) %>% #Keep three best models
   filter(AICc - min(AICc) <= 2) %>% #Filter out model averages that are less than Δ2AICc of the best model
   mutate(., weight = MuMIn::Weights(AICc))
 
-dplyr::select(GrowthR.ic_ave, Lineage, model_name, weight) %>%
+dplyr::select(TPC.model_weights, Lineage, model_name, weight) %>%
   arrange(., desc(weight))
 
-GrowthR.ave_preds <- left_join(GrowthR.preds_mult, dplyr::select(GrowthR.ic_ave, Lineage, model_name, weight)) %>%
+TPC.preds_ave <- left_join(TPC.preds, dplyr::select(TPC.model_weights, Lineage, model_name, weight)) %>%
   na.omit() %>% #Keeps the best model fit when the model average wasn't above Δ2AIC
+  filter(!(Lineage == 'TP4_1' & model_name == 'kamykowski')) %>%
+  filter(!(Lineage == 'TP4_2' & model_name == 'kamykowski')) %>%
+  filter(!(Lineage == 'TP4_3' & model_name == 'kamykowski')) %>%
+  filter(!(Lineage == 'TP4_5' & model_name == 'kamykowski')) %>%
   group_by(Lineage, Growth_temperature) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = weight+(weight_dif/2)) %>% #Adjust model weight since kamykowski CIs not obtained for some TP4 lineages
+  select(-weight_dif) %>%
   summarise(., .fitted = sum(.fitted*weight)) %>%
   ungroup() %>%
   mutate(model_name = 'model_average') %>%
@@ -699,21 +846,31 @@ GrowthR.ave_preds <- left_join(GrowthR.preds_mult, dplyr::select(GrowthR.ic_ave,
                                   str_detect(Lineage, 'TP2') ~ 'TP2',
                                   str_detect(Lineage, 'TP3') ~ 'TP3',
                                   str_detect(Lineage, 'TP4') ~ 'TP4',
-                                  str_detect(Lineage, 'TP5') ~ 'TP5'))
+                                  str_detect(Lineage, 'TP5') ~ 'TP5',
+                                  TRUE ~ 'Error')) %>%
+  mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error')) %>%
+  select(EE_treatment, Lineage, Replicate, model_name, Growth_temperature,.fitted)
 
-#Estimate parameters from models
-GrowthR.params_model <- GrowthR.stack %>%
+#Calculate extra parameters from models
+TPC.extra_params <- TPC.stack %>%
   mutate(., params = map(fit, calc_params)) %>%
   dplyr::select(-fit) %>%
   unnest(params)
 
-#Get averaged parameters based on previously calculated model weights
-GrowthR.params <- left_join(GrowthR.params_model, GrowthR.ic_ave) %>%
+#Get averaged parameter values based on previously calculated model weights
+TPC.extra_params_ave <- left_join(TPC.extra_params, TPC.model_weights) %>%
   dplyr::select(!c(e, eh, q10, skewness, sigma, AIC, AICc, BIC, df.residual)) %>%
-  filter(!(Lineage %in% 'TP1_2' & model_name %in% c('joehnk', 'thomas2017'))) %>% #Remove these models due to CTmin 
-  filter(!(Lineage %in% 'TP1_6' & model_name %in% c('joehnk', 'thomas2017'))) %>% #Remove these models due to CTmin 
-  na.omit() %>%
-  mutate(weight = case_when(str_detect(Lineage, 'TP1_2') ~ 1, #Adjust model wieght since only kamykowski remains
+  na.omit() %>% 
+  filter(model_name %in% c('thomas2017', 'joehnk', 'kamykowski')) %>% #Keep three best models
+  filter(!(Lineage %in% 'TP1_2' & model_name %in% c('joehnk', 'thomas2017'))) %>% #Remove these models due to CTmin being -inf
+  filter(!(Lineage %in% 'TP1_6' & model_name %in% c('joehnk', 'thomas2017'))) %>% #Remove these models due to CTmin being -inf
+  mutate(weight = case_when(str_detect(Lineage, 'TP1_2') ~ 1, #Adjust model weight since only kamykowski remains
                             str_detect(Lineage, 'TP1_6') ~ 1,
                             .default = as.numeric(weight))) %>%
   group_by(Lineage) %>%
@@ -723,13 +880,934 @@ GrowthR.params <- left_join(GrowthR.params_model, GrowthR.ic_ave) %>%
                                   str_detect(Lineage, 'TP2') ~ 'TP2',
                                   str_detect(Lineage, 'TP3') ~ 'TP3',
                                   str_detect(Lineage, 'TP4') ~ 'TP4',
-                                  str_detect(Lineage, 'TP5') ~ 'TP5'))
+                                  str_detect(Lineage, 'TP5') ~ 'TP5',
+                                  TRUE ~ 'ERROR')) %>%
+    mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error')) %>%
+  select(EE_treatment, Lineage, Replicate, model_name, ctmax, ctmin, topt, rmax, thermal_safety_margin, breadth) %>%
+  pivot_longer(cols = ctmax:breadth, names_to = 'param', values_to = 'estimate') %>%
+  group_by(EE_treatment, param) %>%
+  mutate(med_estimate = median(estimate)) %>%
+  mutate(param = case_when(str_detect(param, 'ctmax') ~ 'CTmax',
+                           str_detect(param, 'ctmin') ~ 'CTmin',
+                           str_detect(param, 'topt') ~ 'Topt',
+                           str_detect(param, 'thermal_safety_margin') ~ 'TSM',
+                           str_detect(param, 'breadth') ~ 'Tbr',
+                           str_detect(param, 'rmax') ~ 'rmax',
+                           TRUE ~ 'ERROR'))
 ```
 
-TPC visualisation
+## Bootstrap to obtain confidence intervals of lineage specific models
+```{r}
+#Get coefs for the models that were selected for averaging
+TPC.thomas2017 <- TPC.fits %>%
+  select(EE_treatment, Lineage, data, thomas2017) %>%
+  mutate(., coefs_thomas2017 = map(thomas2017, coef))
+
+TPC.kamykowski <- TPC.fits %>%
+  select(EE_treatment, Lineage, data, kamykowski) %>%
+  mutate(., coefs_kamykowski = map(kamykowski, coef)) %>%
+  filter(!Lineage %in% c('TP4_1', 'TP4_2', 'TP4_3', 'TP4_5')) #Coefs do not allow for fitting with nlsLM 
+
+TPC.joehnk <- TPC.fits %>%
+  select(EE_treatment, Lineage, data, joehnk) %>%
+  mutate(., coefs_joehnk = map(joehnk, coef))
+
+#Refit each model using nlsLM
+TPC.thomas2017 <- mutate(TPC.thomas2017, TPC.nlsLM_thomas2017 = 
+                        map2(data, coefs_thomas2017, ~minpack.lm::nlsLM(mumax~thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+                        data = .x,
+                        start = .y,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        weights = 1/sd_mumax)))
+
+TPC.kamykowski <- mutate(TPC.kamykowski, TPC.nlsLM_kamykowski = 
+                        map2(data, coefs_kamykowski, ~minpack.lm::nlsLM(mumax~kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
+                        data = .x,
+                        start = .y,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        weights = 1/sd_mumax)))
+
+TPC.joehnk <- mutate(TPC.joehnk, TPC.nlsLM_joehnk = 
+                     map2(data, coefs_joehnk, ~minpack.lm::nlsLM(mumax~joehnk_2008(temp = Growth_temperature, rmax, topt, a, b , c),
+                     data = .x,
+                     start = .y,
+                     lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                     upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                     weights = 1/sd_mumax)))
+
+#Create empty list column for each model
+TPC.thomas2017 <- mutate(TPC.thomas2017, bootstrap = list(rep(NA, n())))
+
+for(i in 1:nrow(TPC.thomas2017)){
+  temp_data <- TPC.thomas2017$data[[i]]
+  temp_fit <- nlsLM(mumax ~ thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+               data = temp_data,
+               start = TPC.thomas2017$coefs_thomas2017[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'))
+  boot <- Boot(temp_fit, method = 'residual')
+  TPC.thomas2017$bootstrap[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+TPC.kamykowski <- mutate(TPC.kamykowski, bootstrap = list(rep(NA, n())))
+
+for(i in 1:nrow(TPC.kamykowski)){
+  temp_data <- TPC.kamykowski$data[[i]]
+  temp_fit <- nlsLM(mumax ~ kamykowski_1985(Growth_temperature, tmin, tmax, a, b, c),
+               data = temp_data,
+               start = TPC.kamykowski$coefs_kamykowski[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'))
+  boot <- Boot(temp_fit, method = 'residual')
+  TPC.kamykowski$bootstrap[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+TPC.joehnk <- mutate(TPC.joehnk, bootstrap = list(rep(NA, n())))
+
+for(i in 1:nrow(TPC.joehnk)){
+  temp_data <- TPC.joehnk$data[[i]]
+  temp_fit <- nlsLM(mumax ~ joehnk_2008(Growth_temperature, rmax, topt, a, b , c),
+               data = temp_data,
+               start = TPC.joehnk$coefs_joehnk[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'))
+  boot <- Boot(temp_fit, method = 'residual')
+  TPC.joehnk$bootstrap[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+#Get the raw values of each bootstrap for each model
+TPC.thomas2017 <- mutate(TPC.thomas2017, output_boot = map(bootstrap, function(x) x$t))
+TPC.kamykowski <- mutate(TPC.kamykowski, output_boot = map(bootstrap, function(x) x$t))
+TPC.joehnk <- mutate(TPC.joehnk, output_boot = map(bootstrap, function(x) x$t))
+
+TPC.thomas2017 <- mutate(TPC.thomas2017, preds = map2(output_boot, data, function(x, y){
+  Growth_temperature <- as.data.frame(x) %>%
+    drop_na() %>%
+    mutate(iter = 1:n()) %>%
+    group_by_all() %>%
+    do(data.frame(Growth_temperature = seq(min(y$Growth_temperature), max(y$Growth_temperature), length.out = 100))) %>%
+    ungroup() %>%
+    mutate(pred = thomas_2017(temp = Growth_temperature, a, b, c, d, e))
+  return(Growth_temperature)
+}))
+
+TPC.kamykowski <- mutate(TPC.kamykowski, preds = map2(output_boot, data, function(x, y){
+  Growth_temperature <- as.data.frame(x) %>%
+    drop_na() %>%
+    mutate(iter = 1:n()) %>%
+    group_by_all() %>%
+    do(data.frame(Growth_temperature = seq(min(y$Growth_temperature), max(y$Growth_temperature), length.out = 100))) %>%
+    ungroup() %>%
+    mutate(pred = kamykowski_1985(Growth_temperature, tmin, tmax, a, b, c))
+  return(Growth_temperature)
+}))
+
+TPC.joehnk <- mutate(TPC.joehnk, preds = map2(output_boot, data, function(x, y){
+  Growth_temperature <- as.data.frame(x) %>%
+    drop_na() %>%
+    mutate(iter = 1:n()) %>%
+    group_by_all() %>%
+    do(data.frame(Growth_temperature = seq(min(y$Growth_temperature), max(y$Growth_temperature), length.out = 100))) %>%
+    ungroup() %>%
+    mutate(pred = joehnk_2008(Growth_temperature, rmax, topt, a, b , c))
+  return(Growth_temperature)
+}))
+
+#Calculate bootstrapped confidence intervals
+TPC.thomas2017_preds_CI <- select(TPC.thomas2017, Lineage, preds) %>%
+  unnest(preds) %>%
+  group_by(Lineage, Growth_temperature) %>%
+  summarise(conf_lower = quantile(pred, 0.025),
+            conf_upper = quantile(pred, 0.975),
+            .groups = 'drop') %>%
+  mutate(model_name = 'thomas2017')
+
+TPC.kamykowski_preds_CI <- select(TPC.kamykowski, Lineage, preds) %>%
+  unnest(preds) %>%
+  group_by(Lineage, Growth_temperature) %>%
+  summarise(conf_lower = quantile(pred, 0.025),
+            conf_upper = quantile(pred, 0.975),
+            .groups = 'drop') %>%
+  mutate(model_name = 'kamykowski')
+
+TPC.joehnk_preds_CI <- select(TPC.joehnk, Lineage, preds) %>%
+  unnest(preds) %>%
+  group_by(Lineage, Growth_temperature) %>%
+  summarise(conf_lower = quantile(pred, 0.025),
+            conf_upper = quantile(pred, 0.975),
+            .groups = 'drop') %>%
+  mutate(model_name = 'joehnk')
+
+TPC.preds_CI <- rbind(TPC.thomas2017_preds_CI, TPC.kamykowski_preds_CI, TPC.joehnk_preds_CI)
+
+TPC.preds_CI_low <- left_join(TPC.preds, dplyr::select(TPC.model_weights, Lineage, model_name, weight)) %>%
+  select(-Replicate, -.fitted) %>%
+  ungroup() %>%
+  left_join(dplyr::select(TPC.preds_CI, Lineage, model_name, Growth_temperature, conf_lower),
+            by = c('Lineage', 'model_name', 'Growth_temperature')) %>%
+  na.omit() %>%
+  group_by(Lineage, Growth_temperature) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = weight+(weight_dif/2)) %>% #Adjust model weight since kamykowski CIs not obtained for some TP4 lineages
+  select(-weight_dif) %>%
+  summarise(., conf_lower = sum(conf_lower*weight)) %>%
+  ungroup()
+
+TPC.preds_CI_up <- left_join(TPC.preds, dplyr::select(TPC.model_weights, Lineage, model_name, weight)) %>%
+  select(-Replicate, -.fitted) %>%
+  ungroup() %>%
+  left_join(dplyr::select(TPC.preds_CI, Lineage, model_name, Growth_temperature, conf_upper),
+            by = c('Lineage', 'model_name', 'Growth_temperature')) %>%
+  na.omit() %>%
+  group_by(Lineage, Growth_temperature) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = weight+(weight_dif/2)) %>% #Adjust model weight since kamykowski CIs not obtained for some TP4 lineages
+  select(-weight_dif) %>%
+  summarise(., conf_upper = sum(conf_upper*weight)) %>%
+  ungroup()
+
+TPC.ave_preds_CI <- left_join(TPC.preds_CI_low, TPC.preds_CI_up, by = c('Lineage', 'Growth_temperature')) %>%
+  mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
+                                  str_detect(Lineage, 'TP2') ~ 'TP2',
+                                  str_detect(Lineage, 'TP3') ~ 'TP3',
+                                  str_detect(Lineage, 'TP4') ~ 'TP4',
+                                  str_detect(Lineage, 'TP5') ~ 'TP5')) %>%
+  mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error')) %>%
+  select(EE_treatment, Lineage, Replicate, Growth_temperature, conf_lower, conf_upper)
+
+#Plot bootstrapped CIs
+TPC.CI.plot <- TPC.preds_ave %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  ggplot(aes()) +
+  geom_point(aes(Growth_temperature, mumax, group = interaction(Lineage, Replicate)), TPC.df2, size = 1.5, pch = 20, shape = 0) +
+  geom_line(aes(Growth_temperature, .fitted, colour = EE_treatment)) +
+  geom_ribbon(aes(Growth_temperature, ymin = conf_lower, ymax = conf_upper, fill = EE_treatment, group = interaction(Lineage, Replicate)),
+              TPC.ave_preds_CI, alpha = 0.3) +
+  #facet_wrap(.~Lineage, ncol = 6) +
+  facet_grid(EE_treatment~Replicate, labeller = labeller(EE_treatment = treatment.labs)) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  theme_bw() +
+  scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
+  scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
+  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  labs(colour = 'Experimental evolution treatment') +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size = 14, face="bold"),
+        strip.text.y=element_text(size = 14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        title = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = F)
+TPC.CI.plot
+``` 
+
+## Obtain confidence intervals for parameters
+```{r}
+#Get coefs for the models that were selected for averaging
+TPC.thomas2017 <- mutate(TPC.thomas2017, ci_extra_params = list(rep(NA, n())))
+TPC.kamykowski <- mutate(TPC.kamykowski, ci_extra_params = list(rep(NA, n()))) %>%
+  filter(Lineage != 'TP3_6')
+TPC.joehnk <- mutate(TPC.joehnk, ci_extra_params = list(rep(NA, n())))
+
+#Run for loop to bootstrap extra params from each model
+for(i in 1:nrow(TPC.thomas2017)){
+  temp_data <- TPC.thomas2017$data[[i]]
+  temp_fit <- nlsLM(mumax ~ thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+               data = temp_data,
+               start = TPC.thomas2017$coefs_thomas2017[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'))
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  confint(., method = 'bca') %>%
+  as.data.frame() %>%
+  rename(conf_lower = 1, conf_upper = 2) %>%
+  rownames_to_column(., var = 'param')
+  TPC.thomas2017$ci_extra_params[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+for(i in 1:nrow(TPC.kamykowski)){
+  temp_data <- TPC.kamykowski$data[[i]]
+  temp_fit <- nlsLM(mumax ~ kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
+               data = temp_data,
+               start = TPC.kamykowski$coefs_kamykowski[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'))
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  confint(., method = 'bca') %>%
+  as.data.frame() %>%
+  rename(conf_lower = 1, conf_upper = 2) %>%
+  rownames_to_column(., var = 'param')
+  TPC.kamykowski$ci_extra_params[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+for(i in 1:nrow(TPC.joehnk)){
+  temp_data <- TPC.joehnk$data[[i]]
+  temp_fit <- nlsLM(mumax ~ joehnk_2008(Growth_temperature, rmax, topt, a, b , c),
+               data = temp_data,
+               start = TPC.joehnk$coefs_joehnk[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'))
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  confint(., method = 'bca') %>%
+  as.data.frame() %>%
+  rename(conf_lower = 1, conf_upper = 2) %>%
+  rownames_to_column(., var = 'param')
+  TPC.joehnk$ci_extra_params[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+#Calculate extra params for each model and put in long format to begin with
+TPC.thomas2017 <- mutate(TPC.thomas2017, extra_params = map(TPC.nlsLM_thomas2017, function(x){calc_params(x) %>%
+    pivot_longer(everything(), names_to =  'param', values_to = 'estimate')}))
+
+TPC.thomas2017_param_CI <- left_join(select(TPC.thomas2017, Lineage, extra_params) %>%  unnest(extra_params),
+                                     select(TPC.thomas2017, Lineage, ci_extra_params) %>% unnest(ci_extra_params)) %>%
+  mutate(model_name = 'thomas2017')
+
+TPC.kamykowski <- mutate(TPC.kamykowski, extra_params = map(TPC.nlsLM_kamykowski, function(x){calc_params(x) %>%
+    pivot_longer(everything(), names_to =  'param', values_to = 'estimate')}))
+
+TPC.kamykowski_param_CI <- left_join(select(TPC.kamykowski, Lineage, extra_params) %>% unnest(extra_params),
+                                     select(TPC.kamykowski, Lineage, ci_extra_params) %>% unnest(ci_extra_params)) %>%
+  mutate(model_name = 'kamykowski')
+
+TPC.joehnk <- mutate(TPC.joehnk, extra_params = map(TPC.nlsLM_joehnk, function(x){calc_params(x) %>%
+    pivot_longer(everything(), names_to =  'param', values_to = 'estimate')}))
+
+TPC.joehnk_param_CI <- left_join(select(TPC.joehnk, Lineage, extra_params) %>% unnest(extra_params),
+                                  select(TPC.joehnk, Lineage, ci_extra_params) %>% unnest(ci_extra_params)) %>%
+  mutate(model_name = 'joehnk')
+
+
+TPC.param_CI <- rbind(TPC.thomas2017_param_CI, TPC.kamykowski_param_CI, TPC.joehnk_param_CI)
+  
+TPC.param_CI_low <- left_join(TPC.param_CI, dplyr::select(TPC.model_weights, Lineage, model_name, weight)) %>%
+  select(-estimate, -conf_upper) %>%
+  na.omit() %>%
+  ungroup() %>%
+  group_by(Lineage, param) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = case_when(str_detect(Lineage, 'TP3_6') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_1') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_2') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_3') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_5') ~ weight+(weight_dif/2),
+                            TRUE ~ weight)) %>%
+  select(-weight_dif) %>%
+  summarise(., conf_lower = sum(conf_lower*weight)) %>%
+  ungroup()
+
+TPC.param_CI_up <- left_join(TPC.param_CI, dplyr::select(TPC.model_weights, Lineage, model_name, weight)) %>%
+  select(-estimate, -conf_lower) %>%
+  na.omit() %>%
+  ungroup() %>%
+  group_by(Lineage, param) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = case_when(str_detect(Lineage, 'TP3_6') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_1') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_2') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_3') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_5') ~ weight+(weight_dif/2),
+                            TRUE ~ weight)) %>%
+  select(-weight_dif) %>%
+  summarise(., conf_upper = sum(conf_upper*weight)) %>%
+  ungroup()
+
+TPC.param_CI_est <- left_join(TPC.param_CI, dplyr::select(TPC.model_weights, Lineage, model_name, weight)) %>%
+  select(-conf_lower, -conf_upper) %>%
+  na.omit() %>%
+  ungroup() %>%
+  filter(!(Lineage == 'TP1_2' & model_name == 'thomas2017')) %>%
+  filter(!(Lineage == 'TP1_2' & model_name == 'joehnk')) %>%
+  group_by(Lineage, param) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = case_when(str_detect(Lineage, 'TP1_2') ~ weight+weight_dif,
+                            str_detect(Lineage, 'TP3_6') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_1') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_2') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_3') ~ weight+(weight_dif/2),
+                            str_detect(Lineage, 'TP4_5') ~ weight+(weight_dif/2),
+                            TRUE ~ weight)) %>%
+  select(-weight_dif) %>%
+  summarise(., estimate = sum(estimate*weight)) %>%
+  ungroup()
+
+TPC.param_CI_ave <- left_join(TPC.param_CI_low, TPC.param_CI_up, by = c('Lineage', 'param')) %>%
+  left_join(TPC.param_CI_est, by = c('Lineage', 'param')) %>%
+  mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
+                                  str_detect(Lineage, 'TP2') ~ 'TP2',
+                                  str_detect(Lineage, 'TP3') ~ 'TP3',
+                                  str_detect(Lineage, 'TP4') ~ 'TP4',
+                                  str_detect(Lineage, 'TP5') ~ 'TP5')) %>%
+  mutate(Replicate = case_when(str_detect(Lineage, "_1") ~ '1',
+                               str_detect(Lineage, "_2") ~ '2',
+                               str_detect(Lineage, "_3") ~ '3',
+                               str_detect(Lineage, "_4") ~ '4',
+                               str_detect(Lineage, "_5") ~ '5',
+                               str_detect(Lineage, "_6") ~ '6',
+                               TRUE ~ 'Error')) %>%
+  select(EE_treatment, Lineage, Replicate, param, conf_lower, conf_upper, estimate) %>%
+  group_by(EE_treatment, param) %>%
+  mutate(med_conf_lower = median(conf_lower)) %>%
+  mutate(med_conf_upper = median(conf_upper)) %>%
+  mutate(med_estimate = median(estimate)) %>%
+  mutate(param = case_when(str_detect(param, 'ctmax') ~ 'CTmax',
+                           str_detect(param, 'ctmin') ~ 'CTmin',
+                           str_detect(param, 'topt') ~ 'Topt',
+                           str_detect(param, 'thermal_safety_margin') ~ 'TSM',
+                           str_detect(param, 'breadth') ~ 'Tbr',
+                           str_detect(param, 'rmax') ~ 'rmax',
+                           TRUE ~ 'ERROR')) %>%
+  filter(param %in% c('CTmax', 'CTmin', 'Topt', 'rmax', 'TSM', 'Tbr')) %>%
+  mutate(param = factor(param, levels = c('Topt', 'CTmax', 'Tbr', 'TSM', 'CTmin', 'rmax')))
+
+#Plot CIs for each parameter
+param_labels <- as_labeller(c(Topt = "bold(T[opt]~(degree*C))",
+                              CTmax = "bold(CT[max]~(degree*C))",
+                              Tbr = "bold(T[br]~(degree*C))",
+                              TSM = "bold(TSM ~(degree*C))",
+                              CTmin = "bold(CT[min]~(degree*C))",
+                              rmax = "bold(r[max] ~(day^-1))"),
+                            default = label_parsed)
+
+TPC.param_CI.plot <- TPC.param_CI_ave %>%
+  mutate(param = factor(param, levels = c('Topt', 'CTmax', 'Tbr', 'TSM', 'CTmin', 'rmax'))) %>%
+  ggplot(aes(colour = EE_treatment, fill = EE_treatment)) +
+  geom_point(aes(x = Lineage, y = estimate, shape = Replicate), size = 1.5) +
+  geom_linerange(aes(x = Lineage, ymin = conf_lower, ymax = conf_upper)) +
+  scale_shape_manual(values = c(0,1,2,6,5,7), guide = guide_legend(title.position="top", nrow = 1)) +
+  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+                      guide = guide_legend(title.position="top", nrow = 1)) +
+  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  facet_wrap(~param, ncol = 2, scales = 'free', labeller = param_labels) +
+  #coord_flip() +
+  labs(x = 'Lineage', y = 'Parameter estimate', colour = 'Experimental evolution treatment', shape = 'Replicate n°') +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size=14, face="bold"),
+        strip.text.y = element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top", 
+        legend.direction = "horizontal",
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_blank(), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = FALSE)
+TPC.param_CI.plot
+```                 
+
+## Repeat for treatment level TPC predictions, parameter estimates & CIs
+```{r}
+TPC.EE_fits <- TPC.df %>%
+  dplyr::select(-ave_mumax, -Lineage) %>%
+  group_by(EE_treatment) %>%
+  nest(data = c(Growth_temperature, mumax, sd_mumax)) %>%
+  mutate(thomas2017 = map(data, ~nls_multstart(mumax~thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+                        data = .x,
+                        iter = c(4,4,4,4,4),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax),
+         kamykowski = map(data, ~nls_multstart(mumax~kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
+                        data = .x,
+                        iter = c(4,4,4,4,4),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax),
+         joehnk = map(data, ~nls_multstart(mumax~joehnk_2008(temp = Growth_temperature, rmax, topt, a, b , c),
+                        data = .x,
+                        iter = c(4,4,4,4,4),
+                        start_lower = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008') - 1,
+                        start_upper = get_start_vals(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008') + 1,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                        supp_errors = 'Y',
+                        convergence_count = FALSE),
+                        modelweights = 1/sd_mumax))
+
+#Stack models
+TPC.EE_stack <- dplyr::select(TPC.EE_fits, -data) %>%
+  pivot_longer(., names_to = 'model_name', values_to = 'fit', thomas2017:joehnk)
+
+#Calculate measures of relative model fit (AIC, BIC, AICc)
+TPC.EE_model_ic<- TPC.EE_stack %>%
+  mutate(., info = map(fit, glance),
+         AICc =  map_dbl(fit, MuMIn::AICc)) %>%
+  #dplyr::select(-fit) %>%
+  unnest(info) %>%
+  dplyr::select(model_name, fit, sigma, AIC, AICc, BIC, df.residual)
+
+#Calculate model weights
+TPC.EE_model_weights <- TPC.EE_model_ic %>%
+  group_by(EE_treatment) %>%
+  mutate(., weight = MuMIn::Weights(AICc))
+
+#Get predictions using augment
+TPC.EE_newdata <- tibble(Growth_temperature = seq(min(TPC.df$Growth_temperature), max(TPC.df$Growth_temperature), length.out = 100))
+TPC.EE_preds <- TPC.EE_stack %>%
+  mutate(., rate_preds = map(fit, augment, newdata = TPC.EE_newdata)) %>%
+  dplyr::select(-fit) %>%
+  unnest(rate_preds)
+
+#Get model average predictions (weighted)
+TPC.EE_ave_preds <- left_join(TPC.EE_preds, dplyr::select(TPC.EE_model_weights, EE_treatment, model_name, weight)) %>%
+  filter(EE_treatment != 'TP4' | model_name != 'kamykowski') %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = weight+(weight_dif/2)) %>% #Adjust model weight since kamykowski CIs not obtained for TP4
+  select(-weight_dif) %>%
+  summarise(., .fitted = sum(.fitted*weight)) %>%
+  ungroup()
+
+#Calculate extra parameters from models
+TPC.EE_extra_params <- TPC.EE_stack %>%
+  mutate(., params = map(fit, calc_params)) %>%
+  dplyr::select(-fit) %>%
+  unnest(params)
+
+#Get model average of each estimate 
+TPC.EE_extra_params_ave <- left_join(TPC.EE_extra_params, TPC.EE_model_weights) %>%
+  dplyr::select(!c(e, eh, q10, skewness, sigma, AIC, AICc, BIC, df.residual, fit)) %>%
+  filter(!(EE_treatment %in% 'TP1' & model_name %in% c('joehnk', 'thomas2017'))) %>% #Remove these models due to CTmin being -inf
+  mutate(weight = case_when(str_detect(EE_treatment, 'TP1') ~ 1, #Adjust model weight since only kamykowski remains
+                            .default = as.numeric(weight))) %>%
+  group_by(EE_treatment) %>%
+  summarise(., across(rmax:breadth, function(x){sum(x*weight)})) %>%
+  mutate(model_name = 'model average') %>%
+  select(EE_treatment, model_name, ctmax, ctmin, topt, rmax, thermal_safety_margin, breadth) %>%
+  pivot_longer(cols = ctmax:breadth, names_to = 'param', values_to = 'estimate') %>%
+  group_by(EE_treatment, param) %>%
+  mutate(med_estimate = median(estimate)) %>%
+  mutate(param = case_when(str_detect(param, 'ctmax') ~ 'CTmax',
+                           str_detect(param, 'ctmin') ~ 'CTmin',
+                           str_detect(param, 'topt') ~ 'Topt',
+                           str_detect(param, 'thermal_safety_margin') ~ 'TSM',
+                           str_detect(param, 'breadth') ~ 'Tbr',
+                           str_detect(param, 'rmax') ~ 'rmax',
+                           TRUE ~ 'ERROR')) %>%
+  mutate(EE_treatment = case_when(str_detect(EE_treatment, 'TP1') ~ 'Fluc-short',
+                                  str_detect(EE_treatment, 'TP2') ~ 'Fluc-med',
+                                  str_detect(EE_treatment, 'TP3') ~ 'Fluc-long',
+                                  str_detect(EE_treatment, 'TP4') ~ 'Cont-ele',
+                                  str_detect(EE_treatment, 'TP5') ~ 'Cont-amb',
+                                  TRUE ~ 'ERROR'))
+
+#Get coefs for the models that were selected for averaging
+TPC.EE_thomas2017 <- TPC.EE_fits %>%
+  select(EE_treatment, data, thomas2017) %>%
+  mutate(., coefs_thomas2017 = map(thomas2017, coef))
+
+TPC.EE_kamykowski <- TPC.EE_fits %>%
+  select(EE_treatment, data, kamykowski) %>%
+  mutate(., coefs_kamykowski = map(kamykowski, coef)) %>%
+  filter(EE_treatment != 'TP4')
+
+TPC.EE_joehnk <- TPC.EE_fits %>%
+  select(EE_treatment, data, joehnk) %>%
+  mutate(., coefs_joehnk = map(joehnk, coef))
+
+#Refit each model using nlsLM
+TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, TPC.nlsLM_EE_thomas2017 = 
+                        map2(data, coefs_thomas2017, ~minpack.lm::nlsLM(mumax~thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+                        data = .x,
+                        start = .y,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'thomas_2017'),
+                        weights = 1/sd_mumax)))
+
+TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, TPC.nlsLM_EE_kamykowski = 
+                        map2(data, coefs_kamykowski, ~minpack.lm::nlsLM(mumax~kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
+                        data = .x,
+                        start = .y,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'kamykowski_1985'),
+                        weights = 1/sd_mumax)))
+
+TPC.EE_joehnk <- mutate(TPC.EE_joehnk, TPC.nlsLM_EE_joehnk =
+                        map2(data, coefs_joehnk, ~minpack.lm::nlsLM(mumax~joehnk_2008(temp = Growth_temperature, rmax, topt, a, b , c),
+                        data = .x,
+                        start = .y,
+                        lower = get_lower_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                        upper = get_upper_lims(.x$Growth_temperature, .x$mumax, model_name = 'joehnk_2008'),
+                        weights = 1/sd_mumax)))
+
+#Create empty list column for each model
+TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, bootstrap = list(rep(NA, n())))
+
+for(i in 1:nrow(TPC.EE_thomas2017)){
+  temp_data <- TPC.EE_thomas2017$data[[i]]
+  temp_fit <- nlsLM(mumax ~ thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+               data = temp_data,
+               start = TPC.EE_thomas2017$coefs_thomas2017[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'))
+  boot <- Boot(temp_fit, method = 'residual')
+  TPC.EE_thomas2017$bootstrap[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, bootstrap = list(rep(NA, n())))
+
+for(i in 1:nrow(TPC.EE_kamykowski)){
+  temp_data <- TPC.EE_kamykowski$data[[i]]
+  temp_fit <- nlsLM(mumax ~ kamykowski_1985(Growth_temperature, tmin, tmax, a, b, c),
+               data = temp_data,
+               start = TPC.EE_kamykowski$coefs_kamykowski[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'))
+  boot <- Boot(temp_fit, method = 'residual')
+  TPC.EE_kamykowski$bootstrap[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+TPC.EE_joehnk <- mutate(TPC.EE_joehnk, bootstrap = list(rep(NA, n())))
+
+for(i in 1:nrow(TPC.EE_joehnk)){
+  temp_data <- TPC.EE_joehnk$data[[i]]
+  temp_fit <- nlsLM(mumax ~ joehnk_2008(Growth_temperature, rmax, topt, a, b , c),
+               data = temp_data,
+               start = TPC.EE_joehnk$coefs_joehnk[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'))
+  boot <- Boot(temp_fit, method = 'residual')
+  TPC.EE_joehnk$bootstrap[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+#Get the raw values of each bootstrap for each model
+TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, output_boot = map(bootstrap, function(x) x$t))
+TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, output_boot = map(bootstrap, function(x) x$t))
+TPC.EE_joehnk <- mutate(TPC.EE_joehnk, output_boot = map(bootstrap, function(x) x$t))
+
+TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, preds = map2(output_boot, data, function(x, y){
+  Growth_temperature <- as.data.frame(x) %>%
+    drop_na() %>%
+    mutate(iter = 1:n()) %>%
+    group_by_all() %>%
+    do(data.frame(Growth_temperature = seq(min(y$Growth_temperature), max(y$Growth_temperature), length.out = 100))) %>%
+    ungroup() %>%
+    mutate(pred = thomas_2017(temp = Growth_temperature, a, b, c, d, e))
+  return(Growth_temperature)
+}))
+
+TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, preds = map2(output_boot, data, function(x, y){
+  Growth_temperature <- as.data.frame(x) %>%
+    drop_na() %>%
+    mutate(iter = 1:n()) %>%
+    group_by_all() %>%
+    do(data.frame(Growth_temperature = seq(min(y$Growth_temperature), max(y$Growth_temperature), length.out = 100))) %>%
+    ungroup() %>%
+    mutate(pred = kamykowski_1985(Growth_temperature, tmin, tmax, a, b, c))
+  return(Growth_temperature)
+}))
+
+TPC.EE_joehnk <- mutate(TPC.EE_joehnk, preds = map2(output_boot, data, function(x, y){
+  Growth_temperature <- as.data.frame(x) %>%
+    drop_na() %>%
+    mutate(iter = 1:n()) %>%
+    group_by_all() %>%
+    do(data.frame(Growth_temperature = seq(min(y$Growth_temperature), max(y$Growth_temperature), length.out = 100))) %>%
+    ungroup() %>%
+    mutate(pred = joehnk_2008(Growth_temperature, rmax, topt, a, b , c))
+  return(Growth_temperature)
+}))
+
+#Calculate bootstrapped confidence intervals
+TPC.EE_thomas2017_preds_CI <- select(TPC.EE_thomas2017, EE_treatment, preds) %>%
+  unnest(preds) %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  summarise(conf_lower = quantile(pred, 0.025),
+            conf_upper = quantile(pred, 0.975),
+            .groups = 'drop') %>%
+  mutate(model_name = 'thomas2017')
+
+TPC.EE_kamykowski_preds_CI <- select(TPC.EE_kamykowski, EE_treatment, preds) %>%
+  unnest(preds) %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  summarise(conf_lower = quantile(pred, 0.025),
+            conf_upper = quantile(pred, 0.975),
+            .groups = 'drop') %>%
+  mutate(model_name = 'kamykowski')
+
+TPC.EE_joehnk_preds_CI <- select(TPC.EE_joehnk, EE_treatment, preds) %>%
+  unnest(preds) %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  summarise(conf_lower = quantile(pred, 0.025),
+            conf_upper = quantile(pred, 0.975),
+            .groups = 'drop') %>%
+  mutate(model_name = 'joehnk')
+
+TPC.EE_preds_CI <- rbind(TPC.EE_thomas2017_preds_CI, TPC.EE_kamykowski_preds_CI, TPC.EE_joehnk_preds_CI)
+
+TPC.EE_preds_CI_low <- left_join(TPC.EE_preds, dplyr::select(TPC.EE_model_weights, model_name, weight)) %>%
+  select(-.fitted) %>%
+  ungroup() %>%
+  left_join(dplyr::select(TPC.EE_preds_CI, EE_treatment, model_name, Growth_temperature, conf_lower),
+            by = c('EE_treatment', 'model_name', 'Growth_temperature')) %>%
+  na.omit() %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = weight+(weight_dif/2)) %>% #Adjust model weight since kamykowski CIs not obtained for TP4
+  select(-weight_dif) %>%
+  summarise(., conf_lower = sum(conf_lower*weight)) %>%
+  ungroup()
+
+TPC.EE_preds_CI_up <- left_join(TPC.EE_preds, dplyr::select(TPC.EE_model_weights, model_name, weight)) %>%
+  select(-.fitted) %>%
+  ungroup() %>%
+  left_join(dplyr::select(TPC.EE_preds_CI, EE_treatment, model_name, Growth_temperature, conf_upper),
+            by = c('EE_treatment', 'model_name', 'Growth_temperature')) %>%
+  na.omit() %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = weight+(weight_dif/2)) %>% #Adjust model weight since kamykowski CIs not obtained for TP4
+  select(-weight_dif) %>%
+  summarise(., conf_upper = sum(conf_upper*weight)) %>%
+  ungroup()
+
+TPC.EE_preds_CI <- left_join(TPC.EE_preds_CI_low, TPC.EE_preds_CI_up, by = c('EE_treatment', 'Growth_temperature'))
+
+#Plot bootstrapped CIs
+TPC.EE_CI.plot <- TPC.EE_ave_preds %>%
+  group_by(EE_treatment, Growth_temperature) %>%
+  ggplot(aes()) +
+  geom_point(aes(Growth_temperature, mumax, colour = EE_treatment), TPC.df2, size = 1.5, pch = 20, shape = 0) +
+  geom_line(aes(Growth_temperature, .fitted, colour = EE_treatment)) +
+  geom_ribbon(aes(Growth_temperature, ymin = conf_lower, ymax = conf_upper, fill = EE_treatment), TPC.EE_preds_CI, alpha = 0.3) +
+  facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs)) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed") +
+  theme_bw() +
+  scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
+  scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
+  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  theme_bw() +
+  labs(colour = 'Experimental evolution treatment') +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size = 14, face="bold"),
+        strip.text.y=element_text(size = 14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top",
+        title = element_text(size = 14, face = "bold"),
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = F)
+TPC.EE_CI.plot
+
+#Prepare extra column for calculation of parameters
+TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, ci_extra_params = list(rep(NA, n())))
+TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, ci_extra_params = list(rep(NA, n())))
+TPC.EE_joehnk <- mutate(TPC.EE_joehnk, ci_extra_params = list(rep(NA, n())))
+
+#Run for loop to bootstrap extra params from each model
+for(i in 1:nrow(TPC.EE_thomas2017)){
+  temp_data <- TPC.EE_thomas2017$data[[i]]
+  temp_fit <- nlsLM(mumax ~ thomas_2017(temp = Growth_temperature, a, b, c, d, e),
+               data = temp_data,
+               start = TPC.EE_thomas2017$coefs_thomas2017[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'))
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  confint(., method = 'bca') %>%
+  as.data.frame() %>%
+  rename(conf_lower = 1, conf_upper = 2) %>%
+  rownames_to_column(., var = 'param')
+  TPC.EE_thomas2017$ci_extra_params[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+for(i in 1:nrow(TPC.EE_kamykowski)){
+  temp_data <- TPC.EE_kamykowski$data[[i]]
+  temp_fit <- nlsLM(mumax ~ kamykowski_1985(temp = Growth_temperature, tmin, tmax, a, b, c),
+               data = temp_data,
+               start = TPC.EE_kamykowski$coefs_kamykowski[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'))
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  confint(., method = 'bca') %>%
+  as.data.frame() %>%
+  rename(conf_lower = 1, conf_upper = 2) %>%
+  rownames_to_column(., var = 'param')
+  TPC.EE_kamykowski$ci_extra_params[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+for(i in 1:nrow(TPC.EE_joehnk)){
+  temp_data <- TPC.EE_joehnk$data[[i]]
+  temp_fit <- nlsLM(mumax ~ joehnk_2008(Growth_temperature, rmax, topt, a, b , c),
+               data = temp_data,
+               start = TPC.EE_joehnk$coefs_joehnk[[i]],
+               lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'),
+               upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'))
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  confint(., method = 'bca') %>%
+  as.data.frame() %>%
+  rename(conf_lower = 1, conf_upper = 2) %>%
+  rownames_to_column(., var = 'param')
+  TPC.EE_joehnk$ci_extra_params[[i]] <- boot
+  rm(list = c('temp_fit', 'temp_data', 'boot'))
+}
+
+#Calculate extra params for each model and put in long format to begin with
+TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, extra_params = map(TPC.nlsLM_EE_thomas2017, function(x){calc_params(x) %>%
+    pivot_longer(everything(), names_to =  'param', values_to = 'estimate')}))
+
+TPC.EE_thomas2017_param_CI <- left_join(select(TPC.EE_thomas2017, EE_treatment, extra_params) %>%  unnest(extra_params),
+                                        select(TPC.EE_thomas2017, EE_treatment, ci_extra_params) %>% unnest(ci_extra_params)) %>%
+  mutate(model_name = 'thomas2017')
+
+TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, extra_params = map(TPC.nlsLM_EE_kamykowski, function(x){calc_params(x) %>%
+    pivot_longer(everything(), names_to =  'param', values_to = 'estimate')}))
+
+TPC.EE_kamykowski_param_CI <- left_join(select(TPC.EE_kamykowski, EE_treatment, extra_params) %>% unnest(extra_params),
+                                        select(TPC.EE_kamykowski, EE_treatment, ci_extra_params) %>% unnest(ci_extra_params)) %>%
+  mutate(model_name = 'kamykowski')
+
+TPC.EE_joehnk <- mutate(TPC.EE_joehnk, extra_params = map(TPC.nlsLM_EE_joehnk, function(x){calc_params(x) %>%
+    pivot_longer(everything(), names_to =  'param', values_to = 'estimate')}))
+
+TPC.EE_joehnk_param_CI <- left_join(select(TPC.EE_joehnk, EE_treatment, extra_params) %>% unnest(extra_params),
+                                    select(TPC.EE_joehnk, EE_treatment, ci_extra_params) %>% unnest(ci_extra_params)) %>%
+  mutate(model_name = 'joehnk')
+
+
+TPC.EE_param_CI <- rbind(TPC.EE_thomas2017_param_CI, TPC.EE_kamykowski_param_CI, TPC.EE_joehnk_param_CI)
+  
+TPC.EE_param_CI_low <- left_join(TPC.EE_param_CI, dplyr::select(TPC.EE_model_weights, EE_treatment, model_name, weight)) %>%
+  select(-estimate, -conf_upper) %>%
+  filter(param %in% c('ctmax', 'ctmin', 'topt', 'rmax', 'thermal_safety_margin', 'breadth')) %>%
+  group_by(EE_treatment, param) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = case_when(str_detect(EE_treatment, 'TP4') ~ weight+(weight_dif/2),
+                            TRUE ~ weight)) %>%
+  select(-weight_dif) %>%
+  summarise(., conf_lower = sum(conf_lower*weight)) %>%
+  ungroup()
+
+TPC.EE_param_CI_up <- left_join(TPC.EE_param_CI, dplyr::select(TPC.EE_model_weights, EE_treatment, model_name, weight)) %>%
+  select(-estimate, -conf_lower) %>%
+  filter(param %in% c('ctmax', 'ctmin', 'topt', 'rmax', 'thermal_safety_margin', 'breadth')) %>%
+  group_by(EE_treatment, param) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = case_when(str_detect(EE_treatment, 'TP4') ~ weight+(weight_dif/2),
+                            TRUE ~ weight)) %>%
+  select(-weight_dif) %>%
+  summarise(., conf_upper = sum(conf_upper*weight)) %>%
+  ungroup()
+
+TPC.EE_param_est <- left_join(TPC.EE_param_CI, dplyr::select(TPC.EE_model_weights, EE_treatment, model_name, weight)) %>%
+  select(-conf_lower, -conf_upper) %>%
+  filter(param %in% c('ctmax', 'ctmin', 'topt', 'rmax', 'thermal_safety_margin', 'breadth')) %>%
+  group_by(EE_treatment, param) %>%
+  mutate(weight_dif = 1-sum(weight)) %>%
+  mutate(weight = case_when(str_detect(EE_treatment, 'TP4') ~ weight+(weight_dif/2),
+                            TRUE ~ weight)) %>%
+  select(-weight_dif) %>%
+  summarise(., estimate = sum(estimate*weight)) %>%
+  ungroup()
+
+TPC.EE_param <- left_join(TPC.EE_param_CI_low, TPC.EE_param_CI_up, by = c('EE_treatment', 'param')) %>%
+  left_join(TPC.EE_param_est, by = c('EE_treatment', 'param')) %>%
+  mutate(param = case_when(str_detect(param, 'ctmax') ~ 'CTmax',
+                           str_detect(param, 'ctmin') ~ 'CTmin',
+                           str_detect(param, 'topt') ~ 'Topt',
+                           str_detect(param, 'thermal_safety_margin') ~ 'TSM',
+                           str_detect(param, 'breadth') ~ 'Tbr',
+                           str_detect(param, 'rmax') ~ 'rmax',
+                           TRUE ~ 'ERROR')) %>%
+  mutate(EE_treatment = case_when(str_detect(EE_treatment, 'TP1') ~ 'Fluc-short',
+                                  str_detect(EE_treatment, 'TP2') ~ 'Fluc-med',
+                                  str_detect(EE_treatment, 'TP3') ~ 'Fluc-long',
+                                  str_detect(EE_treatment, 'TP4') ~ 'Cont-ele',
+                                  str_detect(EE_treatment, 'TP5') ~ 'Cont-amb',
+                                  TRUE ~ 'ERROR'))
+
+#Plot parameter estimates with CIs
+filtered_data <- filter(TPC.EE_param, EE_treatment == 'Cont-amb') %>%
+  mutate(param = factor(param, levels = c('Topt', 'CTmax', 'Tbr', 'TSM', 'CTmin', 'rmax')))
+
+param_labels <- as_labeller(c(Topt = "bold(T[opt]~(degree*C))",
+                              CTmax = "bold(CT[max]~(degree*C))",
+                              Tbr = "bold(T[br]~(degree*C))",
+                              TSM = "bold(TSM ~(degree*C))",
+                              CTmin = "bold(CT[min]~(degree*C))",
+                              rmax = "bold(r[max] ~(day^-1))"),
+                            default = label_parsed)
+
+TPC.EE_param.plot <- TPC.EE_param %>%
+  mutate(param = factor(param, levels = c('Topt', 'CTmax', 'Tbr', 'TSM', 'CTmin', 'rmax'))) %>%
+  ggplot(aes(colour = EE_treatment)) +
+  geom_point(aes(EE_treatment, estimate), size = 1.5, pch = 20, shape = 0) +
+  geom_hline(data = filtered_data, aes(yintercept = conf_upper), colour = 'black', size = 0.25, linetype = 'dashed') +
+  geom_hline(data = filtered_data, aes(yintercept = conf_lower), colour = 'black', size = 0.25, linetype = 'dashed') +
+  geom_linerange(aes(x = EE_treatment, ymin = conf_lower, ymax = conf_upper)) +
+  scale_colour_manual(labels = treatment.labs, values=c("#58595b","#4770B3", "#26727B", "#E4B031", "#8B0000")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#58595b","#4770B3", "#26727B", "#E4B031", "#8B0000")) +
+  facet_wrap(.~param, ncol = 2, scales = 'free', labeller = param_labels) +
+  #coord_flip() +
+  labs(x = 'Experimental evolution treatment', y = 'Parameter estimate', colour = 'Experimental evolution treatment') +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(),
+        strip.text.x=element_text(size=14, face="bold"),
+        strip.text.y=element_text(size=14, face="bold"),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = "top", 
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_blank(), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+  guides(fill = FALSE)
+TPC.EE_param.plot
+```                 
+
+## TPC visualisation
 ```{r}
 #TPCs plot - by treatment (visualisation purposes)
-TPC.treat_plot <- GrowthR.ave_preds %>%
+TPC.treat_plot <- TPC.preds_ave %>%
   filter(model_name == 'model_average') %>%
   group_by(EE_treatment, Growth_temperature) %>%
   mutate(ave.fitted = mean(.fitted)) %>%
@@ -760,105 +1838,67 @@ TPC.treat_plot <- GrowthR.ave_preds %>%
         axis.text.y = element_text(size = 12, colour = "black")) +
         guides(fill = FALSE)
 TPC.treat_plot
-
-#TPCs plot - by lineage
-TPC.lin_plot <- GrowthR.ave_preds %>%
-  filter(model_name == 'model_average') %>%
-  group_by(EE_treatment, Growth_temperature) %>%
-  ggplot(aes()) +
-  geom_point(aes(Growth_temperature, mumax), TPC.df, size = 1.5, pch = 20, shape = 0) +
-  geom_line(aes(Growth_temperature, .fitted, colour = EE_treatment)) +
-  facet_wrap(.~Lineage, ncol = 6) +
-  geom_hline(aes(yintercept = 0), linetype = "dashed") +
-  theme_bw() +
-  scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
-  scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  theme_bw() +
-  labs(colour = 'Experimental evolution treatment') +
-  theme(panel.grid.minor = element_blank(),
-        strip.text.x=element_text(size = 14, face="bold"),
-        strip.text.y=element_text(size = 14, face="bold"),
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 12),
-        legend.position = "top",
-        title = element_text(size = 14, face = "bold"),
-        axis.line = element_line(colour = "black"),
-        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
-        axis.text.x = element_text(size = 12, colour = "black"), 
-        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
-        axis.text.y = element_text(size = 12, colour = "black")) +
-  guides(fill = F)
-TPC.lin_plot
 ```
 
-Test for significant differences between experimental evolution treatments
+## Test for significant differences between experimental evolution treatments
 ```{r}
 #Check anova assumptions (QQplots to check for normal distribution)
-aov.topt <- aov(topt ~ EE_treatment, data = GrowthR.params)
+aov.topt <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'Topt', ])
 qqnorm(aov.topt$residuals) 
 qqline(aov.topt$residuals)
 
-aov.rmax <- aov(rmax ~ EE_treatment, data = GrowthR.params)
+aov.rmax <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'rmax', ])
 qqnorm(aov.rmax$residuals) 
 qqline(aov.rmax$residuals)
 
-aov.ctmax <- aov(ctmax ~ EE_treatment, data = GrowthR.params)
+aov.ctmax <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'CTmax', ])
 qqnorm(aov.ctmax$residuals) 
 qqline(aov.ctmax$residuals)
 
-aov.ctmin <- aov(ctmin ~ EE_treatment, data = GrowthR.params)
+aov.ctmin <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'CTmin', ])
 qqnorm(aov.ctmin$residuals) 
 qqline(aov.ctmin$residuals)
 
-aov.tbr <- aov(breadth ~ EE_treatment, data = GrowthR.params)
+aov.tbr <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'Tbr', ])
 qqnorm(aov.tbr$residuals) 
 qqline(aov.tbr$residuals)
 
-aov.tsm <- aov(thermal_safety_margin ~ EE_treatment, data = GrowthR.params)
+aov.tsm <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'TSM', ])
 qqnorm(aov.tsm$residuals) 
 qqline(aov.tsm$residuals)
 
-#Check anova assumptions (boxplots to check for equal variance)
-boxplot(topt ~ EE_treatment, xlab='EE_treatment', ylab='Topt', data = GrowthR.params)
-boxplot(rmax ~ EE_treatment, xlab='EE_treatment', ylab='rmax', data = GrowthR.params)
-boxplot(ctmax ~ EE_treatment, xlab='EE_treatment', ylab='CTmax', data = GrowthR.params)
-boxplot(ctmin ~ EE_treatment, xlab='EE_treatment', ylab='CTmin', data = GrowthR.params)
-boxplot(breadth ~ EE_treatment, xlab='EE_treatment', ylab='Tbr', data = GrowthR.params)
-boxplot(thermal_safety_margin ~ EE_treatment, xlab='EE_treatment', ylab='TSM', data = GrowthR.params)
-
 #Check for significant differences between EE treatments for parameters of interest (using Tukey’s HSD)
-tukey_hsd.topt <- aov(topt ~ EE_treatment, data = GrowthR.params) %>%
+tukey_hsd.topt <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'Topt', ]) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 
-tukey_hsd.rmax <- aov(rmax ~ EE_treatment, data = GrowthR.params) %>%
+tukey_hsd.rmax <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'rmax', ]) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 
-tukey_hsd.ctmax <- aov(ctmax ~ EE_treatment, data = GrowthR.params) %>%
+tukey_hsd.ctmax <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'CTmax', ]) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 
-tukey_hsd.ctmin <- aov(ctmin ~ EE_treatment, data = GrowthR.params) %>%
+tukey_hsd.ctmin <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'CTmin', ]) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 
-tukey_hsd.tbr <- aov(breadth ~ EE_treatment, data = GrowthR.params) %>%
+tukey_hsd.tbr <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'Tbr', ]) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 
-tukey_hsd.tsm <- aov(thermal_safety_margin ~ EE_treatment, data = GrowthR.params) %>% 
+tukey_hsd.tsm <- aov(estimate ~ EE_treatment, data = TPC.extra_params_ave[TPC.extra_params_ave$param == 'TSM', ]) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 ```
 
-Plots of parameters of interest
+## Plots of parameters of interest
 ```{r}
-Topt.plot <- GrowthR.params %>%
+Topt.plot <- TPC.extra_params_ave %>%
+  filter(param == 'Topt') %>%
   ggplot() +
-  geom_boxplot(aes(EE_treatment, y = topt, fill = EE_treatment)) +
+  geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   stat_pvalue_manual(tukey_hsd.topt, label = "p.adj.signif", y.position = c(29.75, 29.95, 30.2, 30.2), tip.length = 0.01) +
   scale_y_continuous(expression(bold(T[opt]~(ºC))), expand =c(0,0), limits = c(25, 30.5)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
@@ -880,9 +1920,10 @@ Topt.plot <- GrowthR.params %>%
         guides(fill = FALSE, colour = FALSE)
 Topt.plot
 
-rmax.plot <- GrowthR.params %>%
+rmax.plot <- TPC.extra_params_ave %>%
+  filter(param == 'rmax') %>%
   ggplot() +
-  geom_boxplot(aes(EE_treatment, y = rmax, fill = EE_treatment)) +
+  geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   stat_pvalue_manual(tukey_hsd.rmax, label = "p.adj.signif", y.position = c(0.149, 0.151, 0.153, 0.143, 0.145, 0.147),
                      tip.length = 0.01) +
   scale_y_continuous(expression(bold(r[max]~(day^-1))), expand =c(0,0), limits = c(0.1, 0.155)) +
@@ -905,10 +1946,11 @@ rmax.plot <- GrowthR.params %>%
         guides(fill = FALSE, colour = FALSE)
 rmax.plot
 
-CTmax.plot <- GrowthR.params %>%
+CTmax.plot <- TPC.extra_params_ave %>%
+  filter(param == 'CTmax') %>%
   ggplot() +
-  geom_boxplot(aes(x = EE_treatment, y = ctmax, fill = EE_treatment)) +
-  stat_pvalue_manual(tukey_hsd.ctmax, label = "p.adj.signif", y.position = c(31.1, 31.15, 31, 31.1, 31), tip.length = 0.01) +
+  geom_boxplot(aes(x = EE_treatment, y = estimate, fill = EE_treatment)) +
+  stat_pvalue_manual(tukey_hsd.ctmax, label = "p.adj.signif", y.position = c(31.1, 31.15, 31, 31), tip.length = 0.01) +
   scale_y_continuous(expression(bold(CT[max]~(ºC))), expand =c(0,0), limits = c(30.2, 31.2)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
   scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -929,9 +1971,10 @@ CTmax.plot <- GrowthR.params %>%
         guides(fill = FALSE, colour = FALSE)
 CTmax.plot
 
-CTmin.plot <- GrowthR.params %>%
+CTmin.plot <- TPC.extra_params_ave %>%
+  filter(param == 'CTmin') %>%
   ggplot() +
-  geom_boxplot(aes(EE_treatment, y = ctmin, fill = EE_treatment)) +
+  geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   stat_pvalue_manual(tukey_hsd.ctmin, label = "p.adj.signif", y.position = c(21, 22.5, 23, 23.5, 22, 22, 21), tip.length = 0.01) +
   scale_y_continuous(expression(bold(CT[min]~(ºC))), expand =c(0,0), limits = c(12, 24)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
@@ -953,9 +1996,10 @@ CTmin.plot <- GrowthR.params %>%
         guides(fill = FALSE, colour = FALSE)
 CTmin.plot
 
-Tbr.plot <- GrowthR.params %>%
+Tbr.plot <- TPC.extra_params_ave %>%
+  filter(param == 'Tbr') %>%
   ggplot() +
-  geom_boxplot(aes(EE_treatment, y = breadth, fill = EE_treatment)) +
+  geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   stat_pvalue_manual(tukey_hsd.tbr, label = "p.adj.signif", y.position = c(7, 7.2, 7.4, 7.6, 5.8, 5.8), tip.length = 0.01) +
   scale_y_continuous(expression(bold(T[br]~(ºC))), expand =c(0,0), limits = c(4, 8)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
@@ -977,10 +2021,11 @@ Tbr.plot <- GrowthR.params %>%
         guides(fill = FALSE, colour = FALSE)
 Tbr.plot
 
-TSM.plot <- GrowthR.params %>%
+TSM.plot <- TPC.extra_params_ave %>%
+  filter(param == 'TSM') %>%
   ggplot() +
   stat_pvalue_manual(tukey_hsd.tsm, label = "p.adj.signif", y.position = c(6.05, 5.85, 5.65, 5.4, 5.2), tip.length = 0.01) +
-  geom_boxplot(aes(EE_treatment, y = thermal_safety_margin, fill = EE_treatment)) +
+  geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   scale_y_continuous(expression(bold(TSM~(ºC))), expand =c(0,0), limits = c(1, 6.5)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
   scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
@@ -1002,27 +2047,32 @@ TSM.plot <- GrowthR.params %>%
 TSM.plot
 ```
 
-PCA of TPC params
+# PCA of TPC params
 ```{r}
 #Prepare matrix and metdata for PCA
-PCA.matrix <- GrowthR.params %>%
-  dplyr::select(-c(EE_treatment, thermal_tolerance, model_name)) %>%
-  rename("Topt" = "topt", "CTmin" = "ctmin", "CTmax" = "ctmax", "TSM" = "thermal_safety_margin", "Tbr" = "breadth") %>%
+PCA.matrix <- TPC.extra_params_ave %>%
+  ungroup() %>%
+  dplyr::select(-c(EE_treatment, Replicate, model_name, med_estimate)) %>%
+  pivot_wider(names_from = 'param', values_from = 'estimate') %>%
   column_to_rownames(var = "Lineage")
 
-PCA.groups <- GrowthR.params %>% pull(EE_treatment)
+PCA.groups <- TPC.extra_params_ave %>% 
+  ungroup() %>%
+  dplyr::select(-c(Replicate, model_name, med_estimate)) %>%
+  pivot_wider(names_from = 'param', values_from = 'estimate') %>%
+  pull(EE_treatment)
 
 #PCA
-PCA.tpc <- prcomp(PCA.matrix, scale = T)
+PCA.TPC <- prcomp(PCA.matrix, scale = T)
 
 #Plot
-PCA.tpc_biplot <- fviz_pca_biplot(PCA.tpc, repel = TRUE,
+PCA.TPC_biplot <- fviz_pca_biplot(PCA.TPC, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 1.5, mean.point = FALSE,
                              fill.ind = PCA.groups, col.ind = PCA.groups, 
                              palette = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
                              alpha.var ="contrib",  col.var = "black",
                              addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
-  labs(title = "", x = "PC1: 42.2%", y = "PC2: 37%") +
+  labs(title = "", x = "PC1: 41.9%", y = "PC2: 37.3%") +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -1038,11 +2088,22 @@ PCA.tpc_biplot <- fviz_pca_biplot(PCA.tpc, repel = TRUE,
   guides(fill = F,alpha = F,
          shape = guide_legend(title = "Temperature (°C)"),
          color = guide_legend(title = "Experimental evolution treatment", override.aes = list(linetype = 0, fill = "white")))
-PCA.tpc_biplot
+PCA.TPC_biplot
 ```
 
-Combine all TPC plots
+# Combine all TPC plots
 ```{r}
+TPC.EE.plots <- ggarrange(TPC.EE_CI.plot,
+                          TPC.EE_param.plot + rremove("legend"),
+                          labels = c("A", "B"),
+                          heights = c(0.75, 1),
+                          widths = c(1, 1),
+                          nrow = 2,
+                          ncol = 1,
+                          align = 'hv')
+TPC.EE.plots
+                          
+
 TPC_params.plots <- ggarrange(Topt.plot + rremove("xlab") + rremove("x.text"),
                              CTmax.plot + rremove("xlab") + rremove("x.text"),
                              Tbr.plot + rremove("xlab") + rremove("x.text"),
@@ -1058,8 +2119,8 @@ TPC_params.plots <- ggarrange(Topt.plot + rremove("xlab") + rremove("x.text"),
                              align = "v") 
 TPC_params.plots
 
-TPC_PCA.plots <-  ggarrange(TPC.treat_plot,
-                            PCA.tpc_biplot,
+TPC_PCA.plots <-  ggarrange(TPC.EE_CI.plot,
+                            PCA.TPC_biplot,
                             common.legend = T,
                             labels = c("A", "H"),
                             heights = c(1, 1),
@@ -1082,7 +2143,7 @@ TPC.plots_annot <- annotate_figure(TPC.plots,
 TPC.plots_annot
 ```
 
-Save plots
+# Save plots
 ```{r}
 #Calibration curves
 ggsave(plot = CC.plots, "TPA - OD vs CellD calibration curves.pdf",
@@ -1109,18 +2170,34 @@ ggsave(plot = GrowthR.nls_params_plot, "TPA - mumax estimates.pdf",
        dpi = 300,
        device = cairo_pdf)
 
-#TPCs by treatment
+#All TPC models by lineage
 ggsave(plot = TPC.plot, "TPA - TPCs all models.pdf", 
        path = "./", 
-       width=10,
+       width=12.5,
        height=10,
        units='in',
        dpi=300)
 
-#TPCs by lineages
-ggsave(plot = TPC.lin_plot, "TPA - TPCs by lineage.pdf", 
+#TPCs with CIs by lineage
+ggsave(plot = TPC.CI.plot, "TPA - TPC with CI.pdf", 
        path = "./", 
-       width=10,
+       width=12.5,
+       height=10,
+       units='in',
+       dpi=300)
+
+#Average TPC by treatment, with CI
+ggsave(plot = TPC.EE.plots, "TPA - TPC EE with CI.pdf", 
+       path = "./", 
+       width=12.5,
+       height=10,
+       units='in',
+       dpi=300)
+
+#TPC params with CIs by lineage
+ggsave(plot = TPC.param_CI.plot, "TPA - TPC param with CI.pdf", 
+       path = "./", 
+       width=12.5,
        height=10,
        units='in',
        dpi=300)
@@ -1134,11 +2211,21 @@ ggsave(plot = TPC.plots_annot, "TPA - all TPC plots.pdf",
        dpi = 300)
 ```
 
-Export data
+# Export data
 ```{r}
-TPC.data_xl <- GrowthR.params %>%
-  dplyr::select(Lineage, rmax, topt, ctmin, ctmax, thermal_safety_margin, breadth) %>%
-  write_xlsx(path = "./TPA - TPC output.xlsx", 
+TPC.param_xl <- TPC.extra_params_ave %>%
+  ungroup() %>%
+  dplyr::select(-EE_treatment, -model_name, -Replicate, -med_estimate) %>%
+  pivot_wider(names_from = 'param', values_from = 'estimate') %>%
+  write_xlsx(path = "./TPA - TPC param output.xlsx", 
+             col_names = TRUE, 
+             format_headers = TRUE)
+
+TPC.param_CI_xl <- TPC.param_CI_ave %>%
+  ungroup() %>%
+  dplyr::select(EE_treatment, Replicate, param, estimate, conf_lower, conf_upper) %>%
+  pivot_wider(names_from = 'param', values_from = c('estimate', 'conf_lower', 'conf_upper')) %>%
+  write_xlsx(path = "./TPA - TPC param CI output.xlsx", 
              col_names = TRUE, 
              format_headers = TRUE)
 
@@ -1148,6 +2235,12 @@ GrowthR.data_xl <- GrowthR.df %>%
   distinct() %>%
   mutate(Lineage = str_replace(Lineage, "_", "-")) %>%
   arrange(by_group = Lineage) %>%
+  write_xlsx(path = "./TPA - GrowthR output.xlsx", 
+             col_names = TRUE, 
+             format_headers = TRUE)
+
+GrowthR_GC1.data_xl <- GrowthR_twop_GC1.df2 %>%
+  #arrange(by_group = Lineage) %>%
   write_xlsx(path = "./TPA - GrowthR output.xlsx", 
              col_names = TRUE, 
              format_headers = TRUE)

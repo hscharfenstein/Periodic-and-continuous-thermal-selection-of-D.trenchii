@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -13,9 +13,10 @@ library(writexl)
 #Data wrangling packages
 library(tidyverse)
 library(ggpubr)
+library(Unicode)
 ```
 
-Import data
+# Import data
 ```{r}
 #Import data into R
 EE.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 1)
@@ -26,7 +27,7 @@ names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 as.character(EE.df$Growth_temperature)
 ```
 
-Calculate total & cumulative generations till start of thermal performance assay
+# Calculate total & cumulative generations till start of thermal performance assay
 ```{r}
 #Calculate total & cumulative generations till start of thermal performance assay
 Gen.df <- EE.df %>%
@@ -89,7 +90,7 @@ Tot_gen.plot <- Gen.df %>%
 Tot_gen.plot
 ```
 
-Calculate total & cumulative days under thermal selection till start of thermal performance assay
+# Calculate total & cumulative days under thermal selection till start of thermal performance assay
 ```{r}
 Tslc.df <- EE.df %>%
   filter(Growth_temperature != 27) %>%
@@ -127,9 +128,38 @@ Tslc.plot <- Tslc.df %>%
         labs(fill = "Temperature (°C)") +
         guides(fill = guide_legend(nrow = 1))
 Tslc.plot
+
+#Plot generations at each temperature
+Gslc.plot <- Gen.df %>%
+  filter(Growth_temperature != 27) %>%
+  group_by(EE_treatment, Growth_temperature) %>% 
+  mutate(Av_cumul_gen = mean(Cumulative_generations)) %>%
+  ungroup %>%
+  dplyr::select(-c(Total_generations, Cumulative_generations, Lineage, Replicate)) %>%
+  distinct() %>%
+  mutate(Growth_temperature = as.character(Growth_temperature)) %>%
+  ggplot(aes(y = Av_cumul_gen, x = EE_treatment, fill = forcats::fct_rev(Growth_temperature))) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous('Generations under thermal selection', expand = c(0,0)) +
+  scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand = c(0,0)) +
+  scale_fill_manual(values = c("#a50026", "#d73027", "#f46d43", "#fee090", "#abd9e9","#4575b4")) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major.x = element_blank(),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.position = 'top',
+        axis.line = element_line(colour = "black"),
+        axis.title.x = element_text(size = 14, colour = "black", face = "bold"),
+        axis.text.x = element_text(size = 12, angle = 45, hjust = 1, colour = "black"), 
+        axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
+        axis.text.y = element_text(size = 12, colour = "black")) +
+        labs(fill = "Temperature (°C)") +
+        guides(fill = guide_legend(nrow = 1))
+Gslc.plot
 ```
 
-Performance (growth rate and Fv/Fm) at elevated temperatures
+# Performance (growth rate and Fv/Fm) at elevated temperatures
 ```{r}
 Grow.plot <- EE.df %>%
   filter(Growth_temperature != 27) %>%
@@ -182,21 +212,32 @@ Phot.plot <- EE.df %>%
 Phot.plot
 ```
 
-Growth rate over time
+# Growth rate over time
 ```{r}
 #Plot growth rate over time
-GrowR.plot <- EE.df %>%
+EE.df2 <- EE.df %>%
   unite('TP_temp', EE_treatment, Growth_temperature, remove = FALSE) %>%
   mutate(TP_planned = case_when(str_detect(TP_temp, 'TP1_27') ~ 'No',
                                 str_detect(TP_temp, 'TP4_27') ~ 'No',
-                                TRUE ~ 'Yes')) %>%
+                                TRUE ~ 'Yes'))
+GrowR.plot <- EE.df2 %>%
   ggplot(aes(y = GrowthR, x = Time_week)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black", size = 0.5) +
   geom_vline(xintercept = 110, linetype = 'solid', color = 'grey', size = 0.5) +
   geom_smooth(method=mgcv::gam, formula = y~s(x, bs = "cs", k = -1), se = T, size = 00.5, colour = "black") +
-  geom_point(aes(color = as.character(Growth_temperature), shape = TP_planned), size = 1.5) +
+  #geom_point(aes(color = as.character(Growth_temperature), shape = TP_planned), size = 1.5) +
+  geom_text(data=filter(EE.df2, TP_planned == 'No'),
+           colour = 'black', label="\u2715", family = "Arial Unicode MS",  size = 3.75) +
+  geom_text(data=filter(EE.df2, EE_treatment != 'TP1' & TP_planned == 'Yes'), aes(color = as.character(Growth_temperature)),
+            label="\u25D6", family = "Arial Unicode MS",  size = 4.25) +
+  geom_text(data=filter(EE.df2, EE_treatment != 'TP1' & TP_planned == 'Yes'), aes(color = as.character(Growth_temperature)),
+            label="\u25D7", family = "Arial Unicode MS", size = 4) +
+  geom_text(data=filter(EE.df2, EE_treatment == 'TP1' & TP_planned == 'Yes'), aes(color = as.character(Growth_temperature)),
+            label="\u25D6", family = "Arial Unicode MS", size = 4.25) +
+  geom_text(data=filter(EE.df2, EE_treatment == 'TP1' & TP_planned == 'Yes'),
+            colour = 'black', label="\u25D7", family = "Arial Unicode MS", size = 4.25) +
   facet_grid(EE_treatment~., labeller = labeller(EE_treatment = treatment.labs)) +
-  scale_shape_manual(values=c(4, 19))+
+  #scale_shape_manual(values=c(4, 19))+
   scale_x_continuous('Time (weeks)', breaks=0:130*10, expand=c(0,0), limits=c(0,123)) +
   scale_y_continuous(expression(bold(Growth~rate~(d^{"-1"}))), expand=c(0,0), limits=c(-0.1, 0.15)) +
   scale_colour_manual(values=c("#000000","#4575b4","#abd9e9","#fee090","#f46d43","#d73027", "#a50026")) +
@@ -213,11 +254,11 @@ GrowR.plot <- EE.df %>%
         axis.title.y = element_text(size = 14, colour = "black", face = "bold"), 
         axis.text.y = element_text(size = 12, colour = "black")) +
         labs(colour = "Temperature (°C)") +
-        guides(shape = 'none', colour = guide_legend(nrow = 1, override.aes = list(size=3)))
+        guides(shape = 'none', colour = guide_legend(nrow = 1, override.aes = list(size=6)))
 GrowR.plot
 ```
 
-Combine plots
+# Combine plots
 ```{r}
 Time.plots <- ggarrange(Tot_gen.plot + rremove("xlab"),
                         Tslc.plot + rremove("legend"),
@@ -249,7 +290,7 @@ Grow_phot.plots <- ggarrange(Grow.plot,
 Grow_phot.plots
 ```
 
-Save the plots
+# Save the plots
 ```{r}
 ggsave(plot = Grow_phot.plots, "EE trait performances.pdf", 
        path = "./",
@@ -263,7 +304,8 @@ ggsave(plot = Grow_time.plots, "EE growth & time.pdf",
        width = 12.5,
        height = 10,
        units = 'in',
-       dpi = 300)
+       dpi = 300,
+       device = cairo_pdf)
 
 ggsave(plot = Cum_gen.plot, "EE cumulative generations.pdf", 
        path = "./",

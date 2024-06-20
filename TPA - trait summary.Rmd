@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import packages
 library(readxl)
@@ -19,12 +19,14 @@ library(ggpubr)
 library(factoextra)
 ```
 
-Import data
+# Import data
 ```{r}
 #Import data into R
 EE_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 1)
 
-TPC_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 9) %>%
+FvFm.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 5)
+
+TPC_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 10) %>%
   mutate(Lineage = str_replace(Lineage, "_", "-")) %>%
   mutate(EE_treatment = case_when(str_detect(Lineage, 'TP1') ~ 'TP1',
                                   str_detect(Lineage, 'TP2') ~ 'TP2',
@@ -32,13 +34,24 @@ TPC_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 9) %
                                   str_detect(Lineage, 'TP4') ~ 'TP4',
                                   str_detect(Lineage, 'TP5') ~ 'TP5'))
 
-PCA_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 10)
+PCA_sum.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 11)
 
 treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb')
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-Comparison of generation time vs. increase in CTmax for experimental evolution treatments
+# Experimental Degree Heating Weeks elapsed during TPC
+```{r}
+eDHW.df <- data.frame(MMM = 28.38482) %>%
+  mutate(Bleaching_threshold = MMM + 1) %>%
+  mutate(Growth_temperature = 31) %>%
+  mutate(Days_at_growth_temperature = 28) %>%
+  mutate(Hotspot = Growth_temperature - Bleaching_threshold) %>%
+  mutate(DHW = Hotspot*(Days_at_growth_temperature/7)) %>%
+  mutate(DHW= round(DHW, digits = 1))
+```
+
+# Comparison of generation time vs. increase in CTmax for experimental evolution treatments
 ```{r}
 #Calculate total generations elapsed for each lineage
 Gen.df2 <- EE_sum.df %>%
@@ -70,7 +83,7 @@ EE_TPC_sum.df <- left_join(Gen.df2, TPC_sum.df2, by = 'Lineage') %>%
   ungroup()
 ```
 
-Test for significant differences between experimental evolution treatments
+# Test for significant differences between experimental evolution treatments
 ```{r}
 #Check anova assumptions (QQplots to check for normal distribution)
 aov.Rel_CTmax <- aov(Rel_CTmax ~ EE_treatment, data = EE_TPC_sum.df)
@@ -86,7 +99,7 @@ tukey_hsd.Rel_CTmax <- aov(Rel_CTmax ~ EE_treatment, data = EE_TPC_sum.df) %>%
   filter(p.adj < 0.05)
 ```
 
-Plot
+# Plot
 ```{r}
 GenCTmax.plot <- EE_TPC_sum.df %>%
   ggplot(aes(x = mean_TotGen, y = mean_Rel_CTmax)) +
@@ -116,7 +129,7 @@ GenCTmax.plot <- EE_TPC_sum.df %>%
 GenCTmax.plot
 ```
 
-PCA for ambient temperature
+# PCA for ambient temperature
 ```{r}
 #Prepare matrix and metdata for PCA
 PCA.sum.matrix_27C <- PCA_sum.df %>%
@@ -167,7 +180,7 @@ PCA.sum_biplot_27C <- fviz_pca_biplot(PCA.sum_27C, repel = TRUE,
 PCA.sum_biplot_27C
 ```
 
-PCA for elevated temperature
+# PCA for elevated temperature
 ```{r}
 #Prepare matrix and metdata for PCA
 PCA.sum.matrix_31C <- PCA_sum.df %>%
@@ -218,7 +231,7 @@ PCA.sum_biplot_31C <- fviz_pca_biplot(PCA.sum_31C, repel = TRUE,
 PCA.sum_biplot_31C
 ```
 
-Combine PCAs
+# Combine PCAs
 ```{r}
 PCA.plots <- ggarrange(PCA.sum_biplot_27C,
                        PCA.sum_biplot_31C,
@@ -231,7 +244,7 @@ PCA.plots <- ggarrange(PCA.sum_biplot_27C,
 PCA.plots
 ```
 
-Export plot
+# Export plots
 ```{r}
 ggsave(plot = PCA.plots, "TPA - PCA summary.pdf", 
        path = "./",

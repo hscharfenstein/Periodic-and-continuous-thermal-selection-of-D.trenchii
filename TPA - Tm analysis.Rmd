@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -26,9 +26,9 @@ library(cowplot)
 library(purrr)
 ``` 
 
-Import data and cleanup
+# Import data and cleanup
 ```{r}
-TM.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 6) %>%
+TM.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 7) %>%
   na.omit() %>%
   mutate(Relative_FvFm = case_when(Relative_FvFm == 0 ~ 0.001, 
                                    TRUE ~ Relative_FvFm)) %>%
@@ -43,7 +43,7 @@ treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-Visualise progression of relative Fv/Fm across increasing temperatures
+# Visualise progression of relative Fv/Fm across increasing temperatures
 ```{r}
 Tm.df2 <- TM.df %>%
   filter(Nutrient_treatment == 'IMK') %>%
@@ -77,7 +77,7 @@ Tm.plot <- Tm.df2 %>%
 Tm.plot
 ```
 
-Model dose response curves of Fv/Fm to temperature
+# Model dose response curves of Fv/Fm to temperature
 ```{r}
 #Fit three different models
 Tm.models <- TM.df %>%
@@ -122,7 +122,7 @@ for (i in 1:length(model_G.4_vis)) {
 }
 ```
 
-Model selection and parameter extraction
+# Model selection and parameter extraction
 ```{r}
 #Calculate parameters to evaluate model fit and ED50
 Tm.models_fit <- Tm.models %>%
@@ -145,7 +145,7 @@ Tm.models_selec <- Tm.models_fit %>%
 Tm.models_final <- Tm.models_fit %>% filter(model_id == 'W1.4')
 ```
 
-Test for significant differences between experimental evolution treatments
+# Test for significant differences between experimental evolution treatments
 ```{r}
 #Check anova assumptions (QQplots to check for normal distribution)
 aov.Tm_27C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.models_final$Growth_temperature == 27, ])
@@ -187,7 +187,7 @@ tukey_hsd.Tm_31C <- aov(ED50.Estimate ~ EE_treatment, data = Tm.models_final[Tm.
 tukey_hsd.Tm <- rbind(tukey_hsd.Tm_27C, tukey_hsd.Tm_29C) %>% rbind(tukey_hsd.Tm_31C)
 ```
 
-Plot curves and ED50 values
+# Plot curves and ED50 values
 ```{r}
 #Augment data
 Tm.newdata <- tibble(Assay_temperature_measured = seq(min(TM.df$Assay_temperature_measured), max(TM.df$Assay_temperature_measured),
@@ -309,7 +309,7 @@ TM_ED50.plot <- Tm.models_final %>%
 TM_ED50.plot
 ```
 
-Strain plasticity analysis
+# Strain plasticity analysis
 ```{r}
 Plastic.df <- Tm.models_final %>%
   filter(Growth_temperature != 29) %>%
@@ -323,15 +323,15 @@ Plastic.df <- Tm.models_final %>%
 
 #Test for significant differences between experimental evolution treatments
 #Check anova assumptions (QQplots to check for normal distribution)
-aov.Plastic <- aov(ED.50_plastic ~ EE_treatment, data = Plastic.plot)
+aov.Plastic <- aov(ED.50_plastic ~ EE_treatment, data = Plastic.df)
 qqnorm(aov.Plastic$residuals) 
 qqline(aov.Plastic$residuals)
 
 #Check anova assumptions (boxplots to check for equal variance)
-boxplot(ED.50_plastic ~ EE_treatment, xlab='EE_treatment', ylab='Strain plasticity', data = Plastic.plot)
+boxplot(ED.50_plastic ~ EE_treatment, xlab='EE_treatment', ylab='Strain plasticity', data = Plastic.df)
 
 #Check for significant differences between experimental evolution treatments (using Tukey’s HSD)
-tukey_hsd.Plastic <- aov(ED.50_plastic ~ EE_treatment, data = Plastic.plot) %>%
+tukey_hsd.Plastic <- aov(ED.50_plastic ~ EE_treatment, data = Plastic.df) %>%
   tukey_hsd() %>%
   filter(p.adj < 0.05)
 
@@ -360,7 +360,7 @@ Plastic.plot <- Plastic.df %>%
 Plastic.plot
 ```
 
-Combine Tm assay plots with ExROS plots
+# Combine Tm assay plots with ExROS plots (run 'TPA - ExROS analysis.Rmd' first)
 ```{r}
 Tm.plots <- cowplot::plot_grid(TM_ED50.plot + rremove('xlab'),
                                Plastic.plot + rremove('xlab'),
@@ -380,7 +380,7 @@ Tm_with_ExROS.plots <- cowplot::plot_grid(Tm.plots,
 Tm_with_ExROS.plots
 ```
 
-Save plots
+# Save plots
 ```{r}
 ggsave(plot = Tm_with_ExROS.plots, "TPA - Tm with ExROS plots.pdf", 
        path = "./",
@@ -398,7 +398,7 @@ ggsave(plot = Tm_lin.plot, "TPA - Tm lineage level fit.pdf",
        dpi = 300)
 ```
 
-Export data
+# Export data
 ```{r}
 Tm.data_xl <- Tm.models_final %>%
   filter(Growth_temperature == 27 | Growth_temperature == 31) %>%

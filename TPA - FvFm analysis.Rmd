@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -18,9 +18,9 @@ library(ggpubr)
 library(cowplot)
 ```
 
-Import data and cleanup
+# Import data and cleanup
 ```{r}
-FvFm.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 4)
+FvFm.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 5)
 
 #Relevel nutrient treatments
 FvFm.df$Growth_temperature <- ordered(FvFm.df$Growth_temperature, levels = c('21', '23', '25', '27', '29', '31', '33'))
@@ -34,7 +34,7 @@ treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-Fv/Fm analyses
+# Fv/Fm analyses
 ```{r}
 #Calculate median Fv/Fm from technical replicates
 FvFm.df2 <- FvFm.df %>%
@@ -88,7 +88,7 @@ FvFm.df6 <- FvFm.df5 %>%
   ungroup()
 ```
 
-Test for significant differences between experimental evolution treatments (Fv/Fm)
+# Test for significant differences between experimental evolution treatments (Fv/Fm)
 ```{r}
 #Check anova assumptions (QQplots to check for normal distribution)
 aov.FvFm_27C <- aov(FvFm ~ EE_treatment, data = FvFm.df3[FvFm.df3$Growth_temperature == 27, ])
@@ -131,7 +131,7 @@ tukey_hsd.FvFm <- rbind(tukey_hsd.FvFm_27C, tukey_hsd.FvFm_29C) %>%
   mutate(Growth_temperature = as.factor(Growth_temperature))
 ```
 
-Test for significant differences between experimental evolution treatments (delta Fv/Fm)
+# Test for significant differences between experimental evolution treatments (delta Fv/Fm)
 ```{r}
 #Check anova assumptions (QQplots to check for normal distribution)
 aov.Delta_FvFm <- aov(Delta_FvFm ~ EE_treatment, data = FvFm.df4)
@@ -149,7 +149,7 @@ tukey_hsd.Delta_FvFm <- aov(Delta_FvFm ~ EE_treatment, data = FvFm.df4) %>%
   filter(p.adj < 0.05)
 ```
 
-Plot 
+# Plot 
 ```{r}
 #Plot Fv/Fm
 FvFm.plot <- FvFm.df3 %>%
@@ -256,7 +256,7 @@ DHW_Delta_FvFm.plot <- FvFm.df6 %>%
 DHW_Delta_FvFm.plot
 ```
 
-Combine plots
+# Combine plots
 ```{r}
 FvFm.plots <- cowplot::plot_grid(FvFm.plot + rremove('xlab'),
                                  Delta_FvFm.plot  + rremove('xlab'),
@@ -280,7 +280,7 @@ FvFm_DHW.plots.annot <- annotate_figure(FvFm_DHW.plots,
 FvFm_DHW.plots.annot
 ```
 
-Save plots
+# Save plots
 ```{r}
 ggsave(plot = FvFm.plots, "TPA - FvFM plots.pdf", 
        path = "./",

@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -16,15 +16,15 @@ library(tidyverse)
 library(respR)
 ```
 
-Import data
+# Import data
 ```{r}
 #Import raw O2 progression data into R
-PR.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 7) %>%
+PR.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 8) %>%
   mutate(phase = Phase) %>%
   mutate(time = Time_seconds) %>%
   mutate(oxygen = O2) %>%
   filter(time > 10 ) %>% #The first 10 seconds are filtered out due to O2 values adjusting after starting measurements
-  select(Growth_temperature, EE_treatment, Run, Chamber, Lineage, Replicate, phase, time, oxygen)
+  dplyr::select(Growth_temperature, EE_treatment, Run, Chamber, Lineage, Replicate, phase, time, oxygen)
 
 #Analyse one temperature at a time
 PR.df <- PR.df %>%
@@ -39,7 +39,7 @@ treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-Inspect raw O2 measurements
+# Inspect raw O2 measurements
 ```{r}
 #Filter for dark phase to visualize respiration rates
 Rd.plot <- PR.df %>%
@@ -101,7 +101,8 @@ Pnet.plot <- PR.df %>%
   guides(colour = FALSE)
 Pnet.plot
 ```
-Mark samples that displayed irregularities during the light phase (chambers 6,7 and 9 appear to have technical issues)
+
+# Mark samples that displayed irregularities during the light phase (chambers 6,7 and 9 appear to have technical issues)
 ```{r}
 PR.df_QC <- PR.df %>%
   #mutate(QC = case_when(Lineage %in% c('TP1-3','TP2-2', 'TP3-2', 'TP4-3', 'TP5-1') ~ 'throw',
@@ -118,7 +119,7 @@ PR.df_QC <- PR.df %>%
                         T ~ 'keep')) #For 21°C
 ```
 
-Plot change in O2 over the entire assay, indicating samples that failed QC
+# Plot change in O2 over the entire assay, indicating samples that failed QC
 ```{r}
 PR.plot <- PR.df_QC %>%
   ggplot(aes(x = time, y = oxygen, colour = EE_treatment)) +
@@ -154,7 +155,7 @@ PR.plot <- PR.df_QC %>%
 PR.plot
 ```
 
-Save and export plots
+# Save and export plots
 ```{r}
 #PR.plot_31C <- PR.plot
 #PR.plot_29C <- PR.plot
@@ -188,9 +189,9 @@ ggsave(plot = PR_plot.final, "TPA - raw O2 measurements.pdf",
        dpi = 300)
 ```
 
-Respiration analysis
+# Respiration analysis
 
-Inspect data
+## Inspect data
 ```{r}
 #Filter for dark phase to visualize respiration
 Rd.plot <- PR.df %>%
@@ -223,7 +224,7 @@ Rd.plot <- PR.df %>%
 Rd.plot
 ```
 
-Calculate respiration rates
+## Calculate respiration rates
 ```{r}
 #Separate culture from blank measurements
 Rd.df <- PR.df %>%
@@ -269,7 +270,7 @@ Rd.df_rate_TP1.1_31C <- Rd.df %>%
 Rd.df_rate <- rbind(Rd.df_rate, Rd.df_rate_TP1.1_31C)
 ```
 
-Calculate & adjust for background respiration rates using blanks
+## Calculate & adjust for background respiration rates using blanks
 ```{r}
 #Select blank measurements
 Rd.df_blank <- PR.df %>%
@@ -294,7 +295,7 @@ Rd.df_adj <- rbind(Rd.df_rate, Rd.df_blank_rate) %>%
   relocate(data, .after = adj_rate)
 ```
 
-Convert the adjusted respiration rates to pmolO2/min/cell
+## Convert the adjusted respiration rates to pmolO2/min/cell
 ```{r}
 #Convert to pmolO2/min
 Rd_conversion <- convert_rate(Rd.df_adj$adj_rate, 
@@ -315,7 +316,7 @@ Rd.df_final <- left_join(Rd.df_adj, Rd.df_converted, by = 'adj_rate') %>%
   mutate(pmolO2.min.cell = pmolO2.min/(750000*1.46)) #normalise for cell density (750,000 cells/ml)
 ```
 
-Visualize Rd rates
+## Visualize Rd rates
 ```{r}
 Rd.plot_final <- Rd.df_final %>%
   filter(Lineage != 'Blank') %>%
@@ -343,7 +344,7 @@ Rd.plot_final <- Rd.df_final %>%
 Rd.plot_final
 ```
 
-Save respiration rates
+## Save respiration rates
 ```{r}
 Rdf_xl <- Rdf_final %>%
   select(-data) %>%
@@ -353,9 +354,9 @@ Rdf_xl <- Rdf_final %>%
              format_headers = TRUE)
 ```
 
-Photosynthesis rates
+# Photosynthesis rates
 
-Inspect data
+## Inspect data
 ```{r}
 #Filter for light phase to visualize photosynthesis
 Pnet.plot <- PR.df %>%
@@ -389,7 +390,7 @@ Pnet.plot <- PR.df %>%
 Pnet.plot
 ```
 
-Calculate Pnet rates
+## Calculate Pnet rates
 ```{r}
 #Separate culture from blank measurements
 Pnet.df <- PR.df %>%
@@ -453,7 +454,7 @@ Pnet.df_rate_max <- rbind(Pnet.df_rate_pos, Pnet.df_rate_neg) %>%
   filter(r2 == max(r2))
 ```
 
-Calculate & adjust for background photosynthesis rates using blanks
+## Calculate & adjust for background photosynthesis rates using blanks
 ```{r}
 #Select blank measurements
 Pnet.df_blank <- PR.df %>%
@@ -500,7 +501,7 @@ Pnet.df_adj <- rbind(Pnet.df_rate_max, Pnet.df_blank_rate_max) %>%
   relocate(data, .after = adj_rate)
 ```
 
-Convert the adjusted photosynthesis rates to pmolO2/min/cell
+## Convert the adjusted photosynthesis rates to pmolO2/min/cell
 ```{r}
 #Convert to pmolO2/min
 Pnet.conversion <- convert_rate(Pnet.df_adj$adj_rate, 
@@ -521,7 +522,7 @@ Pnet.df_final <- left_join(Pnet.df_adj, Pnet.df_converted, by = 'adj_rate') %>%
   mutate(pmolO2.min.cell = pmolO2.min/(750000*1.46)) #normalise for cell density (750,000 cells/ml)
 ```
 
-Visualize photosynthesis rates
+## Visualize photosynthesis rates
 ```{r}
 Pnet.plot <- Pnet.df_final %>%
   filter(Lineage != 'Blank') %>%
@@ -548,7 +549,7 @@ Pnet.plot <- Pnet.df_final %>%
 Pnet.plot
 ```
 
-Save photosynthesis rates
+## Save photosynthesis rates
 ```{r}
 Pdf_xl <- Pdf_final %>%
   select(-data) %>%
@@ -558,7 +559,7 @@ Pdf_xl <- Pdf_final %>%
              format_headers = TRUE)
 ```
 
-Rd, Pnet and Pgross plots
+# Rd, Pnet and Pgross plots
 ```{r}
 #Respiration plots
 Rd.df_import <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 8) %>%
@@ -758,7 +759,7 @@ RdPnet.plot <- RdPnet.df %>%
 RdPnet.plot
 ```
 
-Export plots with Fv/Fm output
+# Export plots with Fv/Fm output (run 'TPA - FvFm analysis.Rmd' first)
 ```{r}
 PR.boxplots <- ggarrange(Rd.boxplots + rremove('xlab'),
                          Pnet.boxplots + rremove('xlab'),
@@ -788,7 +789,7 @@ PR.FvFm.plots.annot <- annotate_figure(PR.FvFm.plots,
 PR.FvFm.plots.annot
 ```
 
-Save plots
+# Save plots
 ```{r}
 ggsave(plot = PR.boxplots.annot, "TPA - PR boxplots.pdf", 
        path = "./",

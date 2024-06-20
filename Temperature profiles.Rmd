@@ -5,7 +5,7 @@ date: "2022-12-16"
 output: html_document
 ---
 
-Load packages
+# Load packages
 ```{r}
 #Data import and export packages
 library(readxl)
@@ -18,17 +18,17 @@ library(ggforce)
 library(ggpubr)
 ```
 
-Import data
+# Import data
 ```{r}
 #Import df with temperature profiles for experimental evolution treatments
-EE_TP.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 11) %>%
+EE_TP.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 12) %>%
   mutate(Time_day = as.numeric(Time_day), Temp_programmed = as.numeric(Temp_programmed)) %>%
   mutate_if(is.numeric, round, digits = 2) %>%
   distinct() %>%
   arrange(Time_day)
 
 #Import df with temperature profiles for Davies Reef
-DR_TP.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 12)  %>%
+DR_TP.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 13)  %>%
   mutate(Date=as.Date(Date, format = "%Y.%m.%d"))
 
 #Plot labels
@@ -36,7 +36,7 @@ treatment.labs <- c('Fluc-short', 'Fluc-med', 'Fluc-long', 'Cont-ele', 'Cont-amb
 names(treatment.labs) <- c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')
 ```
 
-Experimental evolution temperature profiles
+# Experimental evolution temperature profiles
 ```{r}
 TP1.plot <- EE_TP.df %>%
   filter(TP == 'TP1') %>%
@@ -113,7 +113,7 @@ ggsave(plot = TP.plots_annot, "EE temperature profiles.pdf",
        dpi = 300)
 ```
 
-Davies Reef temperature profile
+# Davies Reef temperature profile
 ```{r}
 DR_TP.plot <- DR_TP.df %>%
   ggplot(aes(x = Date)) +
