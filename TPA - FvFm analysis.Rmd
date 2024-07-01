@@ -299,7 +299,7 @@ ggsave(plot = FvFm_DHW.plots.annot, "TPA - FvFM by DHW plots.pdf",
        device = cairo_pdf)
 ```
 
-Export data
+# Export data
 ```{r}
 FvFm.data_xl <- FvFm.df3 %>%
   filter(Growth_temperature == 27 | Growth_temperature == 31) %>%
