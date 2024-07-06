@@ -84,9 +84,12 @@ qqline(aov.ExROS_31C$residuals)
 #QQplots look ok (27°C is borderline)
 
 #Check anova assumptions (boxplots to check for equal variance)
-boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS', data = ExROS.df2[ExROS.df2$Growth_temperature == 27, ])
-boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS', data = ExROS.df2[ExROS.df2$Growth_temperature == 29, ])
-boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS', data = ExROS.df2[ExROS.df2$Growth_temperature == 31, ])
+boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS',
+        data = ExROS.df2[ExROS.df2$Growth_temperature == 27, ])
+boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS',
+        data = ExROS.df2[ExROS.df2$Growth_temperature == 29, ])
+boxplot(ExROS_normalised ~ EE_treatment, xlab='EE_treatment', ylab='ExROS',
+        data = ExROS.df2[ExROS.df2$Growth_temperature == 31, ])
 #Except TP2/TP5@27°C and TP1@29°C homogeneity of variances looks ok
 
 #Check for significant differences between EE treatments at each temperature (using Tukey’s HSD) 
@@ -117,7 +120,8 @@ tukey_hsd.ExROS <- rbind(tukey_hsd.ExROS27C, tukey_hsd.ExROS29C) %>%
 aov.Delta_ExROS <- aov(Delta_ExROS ~ EE_treatment,  data = ExROS.df3)
 qqnorm(aov.Delta_ExROS$residuals) #QQplots to check for normal distribution
 qqline(aov.Delta_ExROS$residuals)
-boxplot(Delta_ExROS ~ EE_treatment, xlab='EE_treatment', ylab='Delta_ExROS', data = ExROS.df3) #Boxplots to check for equal variance
+boxplot(Delta_ExROS ~ EE_treatment, xlab='EE_treatment', ylab='Delta_ExROS', data = ExROS.df3)
+#Boxplots to check for equal variance
 
 #Check for significant differences
 tukey_hsd.Delta_ExROS <- aov(Delta_ExROS ~ EE_treatment, data = ExROS.df3) %>%
@@ -138,8 +142,8 @@ ExROS.plot <- ExROS.df2 %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand =c(0,0)) +
   scale_y_continuous(expression(bold(ExROS/cell)), limits = c(0, 0.00043), expand = c(0,0)) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major.x = element_blank(),
@@ -163,8 +167,8 @@ Delta_ExROS.plot <- ExROS.df3 %>%
   stat_pvalue_manual(tukey_hsd.Delta_ExROS, label = "p.adj.signif", y.position = c(0.00035, 0.00033, 0.00031), tip.length = 0.01) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~ExROS/cell)), limits = c(0, 0.00037), expand = c(0,0)) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major.x = element_blank(),
@@ -186,7 +190,7 @@ Delta_ExROS.plot
 ```{r}
 ExROS.plots <- cowplot::plot_grid(ExROS.plot + rremove('xlab'),
                                  Delta_ExROS.plot + rremove('xlab'),
-                                 labels = c("C", "D"),
+                                 labels = c("(c)", "(d)"),
                                  ncol = 2, align = "v",
                                  axis = "b",
                                  rel_widths = c(1, 0.5))
@@ -207,7 +211,7 @@ ggsave(plot = ExROS.plots.annot, "TPA - ExROS plots.pdf",
        width = 10,
        height = 5,
        units = 'in',
-       dpi = 300,
+       dpi = 600,
        device = cairo_pdf)
 ```
 

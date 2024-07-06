@@ -105,12 +105,12 @@ TP.plots_annot <- annotate_figure(TP.plots,
 TP.plots_annot
 
 #Save the graph
-ggsave(plot = TP.plots_annot, "EE temperature profiles.pdf", 
+ggsave(plot = TP.plots_annot, "Fig. S1.pdf", 
        path = "./", 
        height = 10,
        width = 7.5,
        units = 'in',
-       dpi = 300)
+       dpi = 600)
 ```
 
 # Davies Reef temperature profile
@@ -135,10 +135,11 @@ DR_TP.plot <- DR_TP.df %>%
 DR_TP.plot
 
 #Save the graph
-ggsave(plot = DR_TP.plot,"Davies Reef temperature profile.pdf",
+ggsave(plot = DR_TP.plot,"Fig. S3.pdf",
        path = "./",
        height = 7.5,
        width = 10,
        units = 'in',
-       dpi = 300)
+       dpi = 600)
 ```
+

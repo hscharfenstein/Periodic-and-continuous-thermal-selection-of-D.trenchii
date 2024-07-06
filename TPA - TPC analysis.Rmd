@@ -26,6 +26,7 @@ library(car)
 library(SciViews)
 library(ggpubr)
 library(factoextra)
+library(RColorBrewer)
 ```
 
 # Import data
@@ -186,11 +187,12 @@ GC.plot <- TPA.df %>%
   geom_hline(aes(yintercept = 100000), colour="grey", size = 0.5, linetype = 'solid') + 
   geom_smooth(aes(fill = EE_treatment), method=mgcv::gam, formula = y~s(x, bs = "cs", k = 4), se=T, size=0.75, alpha = 0.25) +
   geom_point(size=3, pch=20, shape=0) +
-  facet_grid(Growth_temperature ~ Growth_cycle, labeller = labeller(Growth_temperature=temperature.labs, Growth_cycle=growth.labs), scales = 'free_y') +
+  facet_grid(Growth_temperature ~ Growth_cycle, labeller = labeller(Growth_temperature=temperature.labs, Growth_cycle=growth.labs),
+             scales = 'free_y') +
   scale_x_continuous('Time (days)', breaks=0:52*8, expand =c(0,0),limits = c(0,52)) +
   scale_y_continuous('Cell density (cells/ml)', limits = c(0,NA), labels = scales::scientific) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(#aspect.ratio = 10/40,
         panel.grid.minor = element_blank(), 
@@ -240,8 +242,8 @@ GC_log.plot <- TPA.df %>%
              scales = 'free_y') +
   scale_x_continuous('Time (days)', breaks=0:52*8, expand =c(0,0),limits = c(0,52)) +
   scale_y_continuous('Cell density (log10 transformed)', limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(#aspect.ratio = 10/40,
         panel.grid.minor = element_blank(), 
@@ -265,7 +267,7 @@ GC_log.plot
 #Combine GC plots
 GC.plots <- ggarrange(GC.plot,
                       GC_log.plot,
-                      labels = c("A", "B"),
+                      labels = c("(a)", "(b)"),
                       common.legend = T,
                       heights = c(1, 1),
                       widths = c(1, 1),
@@ -525,6 +527,7 @@ GrowthR.nls_params_plot <- GrowthR.nls_CI_PMS %>%
                               'Fluc-long_R1', 'Fluc-long_R2', 'Fluc-long_R3', 'Fluc-long_R4', 'Fluc-long_R5', 'Fluc-long_R6',
                               'Cont-ele_R1', 'Cont-ele_R2', 'Cont-ele_R3', 'Cont-ele_R4', 'Cont-ele_R5', 'Cont-ele_R6',
                               'Cont-amb_R1', 'Cont-amb_R2', 'Cont-amb_R3', 'Cont-amb_R4', 'Cont-amb_R5', 'Cont-amb_R6')) +
+  scale_colour_brewer(palette = "Dark2") +
   coord_flip() +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
@@ -648,9 +651,9 @@ Gen_GC1.plot <- GrowthR_twop_GC1.df2 %>%
                      ymin = median_generations-sd_generations,
                      ymax = median_generations+sd_generations),
                  position=position_dodge(width = 1)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
                       guide = guide_legend(title.position="top", nrow = 1)) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   #facet_wrap(~Growth_temperature) +
   #coord_flip() +
   labs(x = 'Growth temperature (°C)', y = 'Generations elapsed', colour = 'Experimental evolution treatment') +
@@ -699,8 +702,8 @@ GrowthR.plot <- GrowthR.df %>% #Change this to 'GrowthR_twop.df' to compare muma
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   scale_x_continuous('Temperature (ºC)', expand =c(0,0),limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA, NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         strip.text.x=element_text(size = 14, face="bold"),
@@ -836,11 +839,12 @@ TPC.plot <- TPC.preds %>%
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(strip.text.x=element_text(size=14, face="bold"),
         strip.text.y=element_text(size=14, face="bold"),
+        panel.spacing.x = unit(1, "lines"),
         legend.title = element_text(size = 14, face = "bold"),
         legend.text = element_text(size = 12),
         legend.position = "top",
@@ -1167,13 +1171,14 @@ TPC.CI.plot <- TPC.preds_ave %>%
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   labs(colour = 'Experimental evolution treatment') +
   theme(panel.grid.minor = element_blank(),
         strip.text.x=element_text(size = 14, face="bold"),
         strip.text.y=element_text(size = 14, face="bold"),
+        panel.spacing.x = unit(1, "lines"),
         legend.title = element_text(size = 14, face = "bold"),
         legend.text = element_text(size = 12),
         legend.position = "top",
@@ -1203,7 +1208,8 @@ for(i in 1:nrow(TPC.thomas2017)){
                start = TPC.thomas2017$coefs_thomas2017[[i]],
                lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'),
                upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'))
-  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)),
+               R = 20, method = 'residual') %>%
   confint(., method = 'bca') %>%
   as.data.frame() %>%
   rename(conf_lower = 1, conf_upper = 2) %>%
@@ -1219,7 +1225,8 @@ for(i in 1:nrow(TPC.kamykowski)){
                start = TPC.kamykowski$coefs_kamykowski[[i]],
                lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'),
                upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'))
-  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)),
+               R = 20, method = 'residual') %>%
   confint(., method = 'bca') %>%
   as.data.frame() %>%
   rename(conf_lower = 1, conf_upper = 2) %>%
@@ -1235,7 +1242,8 @@ for(i in 1:nrow(TPC.joehnk)){
                start = TPC.joehnk$coefs_joehnk[[i]],
                lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'),
                upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'))
-  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)),
+               R = 20, method = 'residual') %>%
   confint(., method = 'bca') %>%
   as.data.frame() %>%
   rename(conf_lower = 1, conf_upper = 2) %>%
@@ -1364,9 +1372,9 @@ TPC.param_CI.plot <- TPC.param_CI_ave %>%
   geom_point(aes(x = Lineage, y = estimate, shape = Replicate), size = 1.5) +
   geom_linerange(aes(x = Lineage, ymin = conf_lower, ymax = conf_upper)) +
   scale_shape_manual(values = c(0,1,2,6,5,7), guide = guide_legend(title.position="top", nrow = 1)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
                       guide = guide_legend(title.position="top", nrow = 1)) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   facet_wrap(~param, ncol = 2, scales = 'free', labeller = param_labels) +
   #coord_flip() +
   labs(x = 'Lineage', y = 'Parameter estimate', colour = 'Experimental evolution treatment', shape = 'Replicate n°') +
@@ -1673,13 +1681,12 @@ TPC.EE_CI.plot <- TPC.EE_ave_preds %>%
   geom_point(aes(Growth_temperature, mumax, colour = EE_treatment), TPC.df2, size = 1.5, pch = 20, shape = 0) +
   geom_line(aes(Growth_temperature, .fitted, colour = EE_treatment)) +
   geom_ribbon(aes(Growth_temperature, ymin = conf_lower, ymax = conf_upper, fill = EE_treatment), TPC.EE_preds_CI, alpha = 0.3) +
-  facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs)) +
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   labs(colour = 'Experimental evolution treatment') +
   theme(panel.grid.minor = element_blank(),
@@ -1697,6 +1704,10 @@ TPC.EE_CI.plot <- TPC.EE_ave_preds %>%
   guides(fill = F)
 TPC.EE_CI.plot
 
+TPC.EE_CI.plot2 <- TPC.EE_CI.plot +
+  facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs))
+TPC.EE_CI.plot2
+
 #Prepare extra column for calculation of parameters
 TPC.EE_thomas2017 <- mutate(TPC.EE_thomas2017, ci_extra_params = list(rep(NA, n())))
 TPC.EE_kamykowski <- mutate(TPC.EE_kamykowski, ci_extra_params = list(rep(NA, n())))
@@ -1710,7 +1721,8 @@ for(i in 1:nrow(TPC.EE_thomas2017)){
                start = TPC.EE_thomas2017$coefs_thomas2017[[i]],
                lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'),
                upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'thomas_2017'))
-  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)),
+               R = 20, method = 'residual') %>%
   confint(., method = 'bca') %>%
   as.data.frame() %>%
   rename(conf_lower = 1, conf_upper = 2) %>%
@@ -1726,7 +1738,8 @@ for(i in 1:nrow(TPC.EE_kamykowski)){
                start = TPC.EE_kamykowski$coefs_kamykowski[[i]],
                lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'),
                upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'kamykowski_1985'))
-  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)),
+               R = 20, method = 'residual') %>%
   confint(., method = 'bca') %>%
   as.data.frame() %>%
   rename(conf_lower = 1, conf_upper = 2) %>%
@@ -1742,7 +1755,8 @@ for(i in 1:nrow(TPC.EE_joehnk)){
                start = TPC.EE_joehnk$coefs_joehnk[[i]],
                lower = get_lower_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'),
                upper = get_upper_lims(temp_data$Growth_temperature, temp_data$mumax, model_name = 'joehnk_2008'))
-  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)), R = 20, method = 'residual') %>%
+  boot <- Boot(temp_fit, f = function(x){unlist(calc_params(x))}, labels = names(calc_params(temp_fit)),
+               R = 20, method = 'residual') %>%
   confint(., method = 'bca') %>%
   as.data.frame() %>%
   rename(conf_lower = 1, conf_upper = 2) %>%
@@ -1844,8 +1858,8 @@ TPC.EE_param.plot <- TPC.EE_param %>%
   geom_hline(data = filtered_data, aes(yintercept = conf_upper), colour = 'black', size = 0.25, linetype = 'dashed') +
   geom_hline(data = filtered_data, aes(yintercept = conf_lower), colour = 'black', size = 0.25, linetype = 'dashed') +
   geom_linerange(aes(x = EE_treatment, ymin = conf_lower, ymax = conf_upper)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#58595b","#4770B3", "#26727B", "#E4B031", "#8B0000")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#58595b","#4770B3", "#26727B", "#E4B031", "#8B0000")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#848484","#4770B3", "#0F5961", "#D0A438", "#981313")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#848484","#4770B3", "#0F5961", "#D0A438", "#981313")) +
   facet_wrap(.~param, ncol = 2, scales = 'free', labeller = param_labels) +
   #coord_flip() +
   labs(x = 'Experimental evolution treatment', y = 'Parameter estimate', colour = 'Experimental evolution treatment') +
@@ -1882,8 +1896,8 @@ TPC.treat_plot <- TPC.preds_ave %>%
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 3), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   labs(colour = 'Experimental evolution treatment') +
   theme(panel.grid.minor = element_blank(),
@@ -1963,8 +1977,8 @@ Topt.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.topt, label = "p.adj.signif", y.position = c(29.75, 29.95, 30.2, 30.2), tip.length = 0.01) +
   scale_y_continuous(expression(bold(T[opt]~(ºC))), expand =c(0,0), limits = c(25, 30.5)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -1989,8 +2003,8 @@ rmax.plot <- TPC.extra_params_ave %>%
                      tip.length = 0.01) +
   scale_y_continuous(expression(bold(r[max]~(day^-1))), expand =c(0,0), limits = c(0.1, 0.155)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2014,8 +2028,8 @@ CTmax.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.ctmax, label = "p.adj.signif", y.position = c(31.1, 31.15, 31, 31), tip.length = 0.01) +
   scale_y_continuous(expression(bold(CT[max]~(ºC))), expand =c(0,0), limits = c(30.2, 31.2)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2039,8 +2053,8 @@ CTmin.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.ctmin, label = "p.adj.signif", y.position = c(21, 22.5, 23, 23.5, 22, 22, 21), tip.length = 0.01) +
   scale_y_continuous(expression(bold(CT[min]~(ºC))), expand =c(0,0), limits = c(12, 24)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2064,8 +2078,8 @@ Tbr.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.tbr, label = "p.adj.signif", y.position = c(7, 7.2, 7.4, 7.6, 5.8, 5.8), tip.length = 0.01) +
   scale_y_continuous(expression(bold(T[br]~(ºC))), expand =c(0,0), limits = c(4, 8)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2089,8 +2103,8 @@ TSM.plot <- TPC.extra_params_ave %>%
   geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   scale_y_continuous(expression(bold(TSM~(ºC))), expand =c(0,0), limits = c(1, 6.5)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
-  scale_fill_manual(values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2130,8 +2144,9 @@ PCA.TPC <- prcomp(PCA.matrix, scale = T)
 PCA.TPC_biplot <- fviz_pca_biplot(PCA.TPC, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 1.5, mean.point = FALSE,
                              fill.ind = PCA.groups, col.ind = PCA.groups, 
-                             palette = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
-                             alpha.var ="contrib",  col.var = "black",
+                             palette = c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
+                             #alpha.var ="contrib",
+                             col.var = "black",
                              addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
   labs(title = "", x = "PC1: 41.9%", y = "PC2: 37.3%") +
   theme_bw() +
@@ -2154,9 +2169,9 @@ PCA.TPC_biplot
 
 # Combine all TPC plots
 ```{r}
-TPC.EE.plots <- ggarrange(TPC.EE_CI.plot,
+TPC.EE.plots <- ggarrange(TPC.EE_CI.plot2,
                           TPC.EE_param.plot + rremove("legend"),
-                          labels = c("A", "B"),
+                          labels = c("(a)", "(b)"),
                           heights = c(0.75, 1),
                           widths = c(1, 1),
                           nrow = 2,
@@ -2172,7 +2187,7 @@ TPC_params.plots <- ggarrange(Topt.plot + rremove("xlab") + rremove("x.text"),
                              CTmin.plot + rremove("xlab") + rremove("x.text"),
                              rmax.plot + rremove("xlab") + rremove("x.text"),
                              legend = "none",
-                             labels = c("B", "C", "D", "E", "F", "G"),
+                             labels = c("(b)", "(c)", "(d)", "(e)", "(f)", "(g)"),
                              heights = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2),
                              widths = c(0.2, 0.2, 0.2, 0.2, 0.2, 0.2),
                              nrow = 3,
@@ -2183,7 +2198,7 @@ TPC_params.plots
 TPC_PCA.plots <-  ggarrange(TPC.EE_CI.plot,
                             PCA.TPC_biplot,
                             common.legend = T,
-                            labels = c("A", "H"),
+                            labels = c("(a)", "(h)"),
                             heights = c(1, 1),
                             widths = c(0.5, 0.5),
                             ncol = 1,
@@ -2207,69 +2222,69 @@ TPC.plots_annot
 # Save plots
 ```{r}
 #Calibration curves
-ggsave(plot = CC.plots, "TPA - OD vs CellD calibration curves.pdf",
+ggsave(plot = CC.plots, "Fig. S5.pdf",
        path = "./", 
        width = 10,
        height = 15, 
        units = 'in', 
-       dpi = 300)
+       dpi = 600)
 
 #Growth curves
-ggsave(plot = GC.plots, "TPA - growth curves.pdf",
+ggsave(plot = GC.plots, "Fig. S4.pdf",
        path = "./", 
        width = 12.5,
        height = 15,
-       units='in',
-       dpi=300)
+       units = 'in',
+       dpi = 600)
 
 #Growth rate model parameters
-ggsave(plot = GrowthR.nls_params_plot, "TPA - mumax estimates.pdf", 
+ggsave(plot = GrowthR.nls_params_plot, "Fig. S6.pdf", 
        path = "./", 
        width = 10,
        height = 15,
        units = 'in',
-       dpi = 300,
+       dpi = 600,
        device = cairo_pdf)
 
 #All TPC models by lineage
-ggsave(plot = TPC.plot, "TPA - TPCs all models.pdf", 
+ggsave(plot = TPC.plot, "Fig. S7.pdf", 
        path = "./", 
-       width=12.5,
-       height=10,
-       units='in',
-       dpi=300)
+       width = 12.5,
+       height = 10,
+       units = 'in',
+       dpi = 600)
 
 #TPCs with CIs by lineage
-ggsave(plot = TPC.CI.plot, "TPA - TPC with CI.pdf", 
+ggsave(plot = TPC.CI.plot, "Fig. S8.pdf", 
        path = "./", 
-       width=12.5,
-       height=10,
-       units='in',
-       dpi=300)
+       width = 12.5,
+       height = 10,
+       units = 'in',
+       dpi = 600)
 
 #Average TPC by treatment, with CI
-ggsave(plot = TPC.EE.plots, "TPA - TPC EE with CI.pdf", 
+ggsave(plot = TPC.EE.plots, "Fig. S10.pdf", 
        path = "./", 
-       width=12.5,
-       height=10,
-       units='in',
-       dpi=300)
+       width = 12.5,
+       height = 10,
+       units = 'in',
+       dpi = 600)
 
 #TPC params with CIs by lineage
-ggsave(plot = TPC.param_CI.plot, "TPA - TPC param with CI.pdf", 
+ggsave(plot = TPC.param_CI.plot, "Fig. S9.pdf", 
        path = "./", 
-       width=12.5,
-       height=10,
-       units='in',
-       dpi=300)
+       width = 12.5,
+       height = 10,
+       units = 'in',
+       dpi = 600)
 
 #All TPC plots combined
-ggsave(plot = TPC.plots_annot, "TPA - all TPC plots.pdf", 
+ggsave(plot = TPC.plots_annot, "Fig. 3.pdf", 
        path = "./", 
        width = 15,
        height = 12.5,
        units = 'in',
-       dpi = 300)
+       dpi = 600)
 ```
 
 # Export data

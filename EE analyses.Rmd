@@ -39,13 +39,20 @@ Gen.df <- EE.df %>%
   dplyr::select(c(EE_treatment, Lineage, Replicate, Growth_temperature, Cumulative_generations, Total_generations)) %>% 
   distinct() %>%
   mutate_if(is.numeric, ~round(., 1)) %>%
-  ungroup()
-
+  ungroup() %>%
+  mutate(Lineage = case_when(str_detect(Lineage, "TP1") ~ 'Fluc-short',
+                             str_detect(Lineage, "TP2") ~ 'Fluc-med',
+                             str_detect(Lineage, "TP3") ~ 'Fluc-long',
+                             str_detect(Lineage, "TP4") ~ 'Cont-ele',
+                             str_detect(Lineage, "TP5") ~ 'Cont-amb',
+                             TRUE ~ 'Error')) %>%
+  unite('Lineage', Lineage:Replicate)
+  
 #Plot cumulative generations elapsed
 Cum_gen.plot <- Gen.df %>%
   filter(Cumulative_generations != 0) %>%
   mutate(Growth_temperature = as.character(Growth_temperature)) %>%
-  ggplot(aes(y = Cumulative_generations, x = Lineage, fill = forcats::fct_rev(Growth_temperature))) +
+  ggplot(aes(y = Cumulative_generations, x = forcats::fct_inorder(Lineage), fill = forcats::fct_rev(Growth_temperature))) +
   geom_bar(stat = "identity") +
   scale_y_continuous('Cumulative generations', expand = c(0,0), limits = c(0,95), breaks = 0:100*10) +
   scale_x_discrete('Lineage', expand = c(0,0)) +
@@ -135,7 +142,7 @@ Gslc.plot <- Gen.df %>%
   group_by(EE_treatment, Growth_temperature) %>% 
   mutate(Av_cumul_gen = mean(Cumulative_generations)) %>%
   ungroup %>%
-  dplyr::select(-c(Total_generations, Cumulative_generations, Lineage, Replicate)) %>%
+  dplyr::select(-c(Total_generations, Cumulative_generations, Lineage)) %>%
   distinct() %>%
   mutate(Growth_temperature = as.character(Growth_temperature)) %>%
   ggplot(aes(y = Av_cumul_gen, x = EE_treatment, fill = forcats::fct_rev(Growth_temperature))) +
@@ -171,7 +178,7 @@ Grow.plot <- EE.df %>%
                      expand = c(0,0), 
                      limits=c(-0.1,0.1), 
                      breaks = seq(-0.1,0.1, by = 0.05)) +
-  scale_fill_manual(labels = treatment.labs, values = c("#8B0000","#E4B031","#26727B","#4770B3", "#58595b")) +
+  scale_fill_manual(labels = treatment.labs, values = c("#981313","#D0A438","#0F5961","#4770B3", "#8E8E8E")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         legend.title = element_text(size = 14, face = "bold"),
@@ -196,7 +203,7 @@ Phot.plot <- EE.df %>%
                      expand=c(0,0), 
                      limits=c(0.2,0.6), 
                      breaks = seq(0,0.7, by = 0.1)) +
-  scale_fill_manual(labels = treatment.labs, values = c("#8B0000","#E4B031","#26727B","#4770B3", "#58595b")) +
+  scale_fill_manual(labels = treatment.labs, values = c("#981313","#D0A438","#0F5961","#4770B3", "#8E8E8E")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         legend.title = element_text(size = 14, face = "bold"),
@@ -262,7 +269,7 @@ GrowR.plot
 ```{r}
 Time.plots <- ggarrange(Tot_gen.plot + rremove("xlab"),
                         Tslc.plot + rremove("legend"),
-                        labels = c("B", "C"),
+                        labels = c("(b)", "(c)"),
                         heights = c(0.75, 1),
                         widths = c(1, 1),
                         ncol = 1,
@@ -272,7 +279,7 @@ Time.plots
 Grow_time.plots <- ggarrange(GrowR.plot,
                              Time.plots,
                              common.legend = TRUE,
-                             labels = c("A"),
+                             labels = c("(a)"),
                              heights = c(1, 1, 1),
                              widths = c(1, 0.5, 0.5),
                              ncol = 2,
@@ -282,7 +289,7 @@ Grow_time.plots
 Grow_phot.plots <- ggarrange(Grow.plot,
                              Phot.plot,
                              common.legend = TRUE,
-                             labels = c("A", "B"),
+                             labels = c("(a)", "(b)"),
                              heights = c(1, 1),
                              widths = c(1, 1),
                              nrow = 1,
@@ -292,25 +299,25 @@ Grow_phot.plots
 
 # Save the plots
 ```{r}
-ggsave(plot = Grow_phot.plots, "EE trait performances.pdf", 
+ggsave(plot = Grow_phot.plots, "Fig. S13.pdf", 
        path = "./",
        width = 10,
        height = 5,
        units = 'in',
-       dpi = 300)
+       dpi = 600)
 
-ggsave(plot = Grow_time.plots, "EE growth & time.pdf", 
+ggsave(plot = Grow_time.plots, "Fig. 2.pdf", 
        path = "./",
        width = 12.5,
        height = 10,
        units = 'in',
-       dpi = 300,
+       dpi = 600,
        device = cairo_pdf)
 
-ggsave(plot = Cum_gen.plot, "EE cumulative generations.pdf", 
+ggsave(plot = Cum_gen.plot, "Fig. S2.pdf", 
        path = "./",
        width = 10,
        height = 7.5,
        units = 'in',
-       dpi = 300)
+       dpi = 600)
 ```

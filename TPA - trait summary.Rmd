@@ -109,9 +109,9 @@ GenCTmax.plot <- EE_TPC_sum.df %>%
   geom_point(aes(fill = EE_treatment), pch = 21, size = 3) +
   scale_x_continuous(expression(bold(Total~generations))) +
   scale_y_continuous(expression(bold(Change~CT[max]~(relative~to~Cont-amb)))) + 
-  scale_colour_manual(labels = treatment.labs, values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   scale_fill_manual('Experimental evolution treatment', labels = treatment.labs,
-                    values=c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b")) +
+                    values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -151,14 +151,15 @@ PCA.sum_27C <- prcomp(PCA.sum.matrix_27C, scale = T)
 PCA.sum_biplot_27C <- fviz_pca_biplot(PCA.sum_27C, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 0.1, mean.point = FALSE,
                              fill.ind = PCA.sum.group3_27C, col.ind = PCA.sum.group3_27C, palette = c(
-                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
-                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
-                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
-                             alpha.var ="contrib",  col.var = "black",
+                               "#981313","#D0A438", "#0F5961", "#4770B3", "#848484",
+                               "#981313","#D0A438", "#0F5961", "#4770B3", "#848484",
+                               "#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
+                             #alpha.var ="contrib", 
+                             col.var = "black",
                              addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
   labs(title = "", x = "PC1: 29.4%", y = "PC2: 26.7%") + #Labs 27C
   geom_point(aes(colour = PCA.sum.group1_27C, shape = PCA.sum.group2_27C), size = 2) +
-  scale_colour_discrete(labels = treatment.labs, type = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+  scale_colour_discrete(labels = treatment.labs, type = c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
                         limits = c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
@@ -202,14 +203,15 @@ PCA.sum_31C <- prcomp(PCA.sum.matrix_31C, scale = T)
 PCA.sum_biplot_31C <- fviz_pca_biplot(PCA.sum_31C, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 0.1, mean.point = FALSE,
                              fill.ind = PCA.sum.group3_31C, col.ind = PCA.sum.group3_31C, palette = c(
-                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
-                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b",
-                               "#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
-                             alpha.var ="contrib",  col.var = "black",
+                               "#981313","#D0A438", "#0F5961", "#4770B3", "#848484",
+                               "#981313","#D0A438", "#0F5961", "#4770B3", "#848484",
+                               "#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
+                             #alpha.var ="contrib",
+                             col.var = "black",
                              addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
   labs(title = "", x = "PC1: 44.7%", y = "PC2: 18.6%") + #Labs 31C
   geom_point(aes(colour = PCA.sum.group1_31C, shape = PCA.sum.group2_31C), size = 2) +
-  scale_colour_discrete(labels = treatment.labs, type = c("#8B0000","#E4B031", "#26727B", "#4770B3", "#58595b"),
+  scale_colour_discrete(labels = treatment.labs, type = c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
                         limits = c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
@@ -236,7 +238,7 @@ PCA.sum_biplot_31C
 PCA.plots <- ggarrange(PCA.sum_biplot_27C,
                        PCA.sum_biplot_31C,
                        common.legend = TRUE,
-                       labels = c("A", "B"),
+                       labels = c("(a)", "(b)"),
                        heights = c(1, 1),
                        widths = c(1, 1),
                        ncol = 1,
@@ -246,19 +248,19 @@ PCA.plots
 
 # Export plots
 ```{r}
-ggsave(plot = PCA.plots, "TPA - PCA summary.pdf", 
+ggsave(plot = PCA.plots, "Fig. 6.pdf", 
        path = "./",
        width = 10,
        height = 10,
        units = 'in',
-       dpi = 300,
+       dpi = 600,
        device = cairo_pdf)
 
-ggsave(plot = GenCTmax.plot, "TPA - generations v CTmax.pdf", 
+ggsave(plot = GenCTmax.plot, "Fig. S16.pdf", 
        path = "./",
        width = 10,
        height = 7.5,
        units = 'in',
-       dpi = 300,
+       dpi = 600,
        device = cairo_pdf)
 ```
