@@ -60,8 +60,8 @@ Tm.plot <- Tm.df2 %>%
   facet_grid(.~Growth_temperature) + 
   scale_x_continuous('Temperature (°C)', breaks=(33:42*1), limits = c(32.75,42.25), expand = c(0,0)) +
   scale_y_continuous(expression(bold(F[v]/F[m]~relative~to~control~("%"))), breaks=(0:100*20), expand = c(0,0), limits = c(0,100)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         strip.text.x=element_text(size=14, face="bold"),
@@ -245,8 +245,8 @@ Tm_treat.plot <- Tm.preds_mult %>%
   scale_x_continuous('Temperature (ºC)', expand =c(0,0), limits = c(32, 43), breaks = seq(32, 43, by = 2))  +
   scale_y_continuous(expression(bold(F[v]/F[m]~relative~to~control~("%"))), limits = c(0, 100), expand = c(0,0)) +
   scale_colour_manual('Experimental evolution treatment', labels = treatment.labs, 
-                      values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+                      values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         strip.text.x=element_text(size=14, face="bold"),
@@ -307,8 +307,8 @@ TM_ED50.plot <- Tm.models_final %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature = temperature.labs)) + 
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand = c(0,0)) +
   scale_y_continuous('Melting temperature (°C)', expand = c(0,0), limits = c(35.5, 41)) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -358,8 +358,8 @@ Plastic.plot <- Plastic.df %>%
   stat_pvalue_manual(tukey_hsd.Plastic, label = "p.adj.signif", y.position = c(3.8, 3.6, 3.2, 3.4), tip.length = 0.01) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand = c(0,0)) +
   scale_y_continuous('Thermal plasticity (°C)', limits = c(1.5, 3.9), expand = c(0,0)) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),

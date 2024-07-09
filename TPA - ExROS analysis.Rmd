@@ -142,8 +142,8 @@ ExROS.plot <- ExROS.df2 %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand =c(0,0)) +
   scale_y_continuous(expression(bold(ExROS/cell)), limits = c(0, 0.00043), expand = c(0,0)) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major.x = element_blank(),
@@ -167,8 +167,8 @@ Delta_ExROS.plot <- ExROS.df3 %>%
   stat_pvalue_manual(tukey_hsd.Delta_ExROS, label = "p.adj.signif", y.position = c(0.00035, 0.00033, 0.00031), tip.length = 0.01) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs, expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~ExROS/cell)), limits = c(0, 0.00037), expand = c(0,0)) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major.x = element_blank(),

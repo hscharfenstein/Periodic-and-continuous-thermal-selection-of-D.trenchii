@@ -191,8 +191,8 @@ GC.plot <- TPA.df %>%
              scales = 'free_y') +
   scale_x_continuous('Time (days)', breaks=0:52*8, expand =c(0,0),limits = c(0,52)) +
   scale_y_continuous('Cell density (cells/ml)', limits = c(0,NA), labels = scales::scientific) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(#aspect.ratio = 10/40,
         panel.grid.minor = element_blank(), 
@@ -242,8 +242,8 @@ GC_log.plot <- TPA.df %>%
              scales = 'free_y') +
   scale_x_continuous('Time (days)', breaks=0:52*8, expand =c(0,0),limits = c(0,52)) +
   scale_y_continuous('Cell density (log10 transformed)', limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(#aspect.ratio = 10/40,
         panel.grid.minor = element_blank(), 
@@ -651,9 +651,9 @@ Gen_GC1.plot <- GrowthR_twop_GC1.df2 %>%
                      ymin = median_generations-sd_generations,
                      ymax = median_generations+sd_generations),
                  position=position_dodge(width = 1)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
                       guide = guide_legend(title.position="top", nrow = 1)) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   #facet_wrap(~Growth_temperature) +
   #coord_flip() +
   labs(x = 'Growth temperature (°C)', y = 'Generations elapsed', colour = 'Experimental evolution treatment') +
@@ -702,8 +702,8 @@ GrowthR.plot <- GrowthR.df %>% #Change this to 'GrowthR_twop.df' to compare muma
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   scale_x_continuous('Temperature (ºC)', expand =c(0,0),limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA, NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         strip.text.x=element_text(size = 14, face="bold"),
@@ -839,8 +839,8 @@ TPC.plot <- TPC.preds %>%
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(strip.text.x=element_text(size=14, face="bold"),
         strip.text.y=element_text(size=14, face="bold"),
@@ -1171,8 +1171,8 @@ TPC.CI.plot <- TPC.preds_ave %>%
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   labs(colour = 'Experimental evolution treatment') +
   theme(panel.grid.minor = element_blank(),
@@ -1372,9 +1372,9 @@ TPC.param_CI.plot <- TPC.param_CI_ave %>%
   geom_point(aes(x = Lineage, y = estimate, shape = Replicate), size = 1.5) +
   geom_linerange(aes(x = Lineage, ymin = conf_lower, ymax = conf_upper)) +
   scale_shape_manual(values = c(0,1,2,6,5,7), guide = guide_legend(title.position="top", nrow = 1)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
                       guide = guide_legend(title.position="top", nrow = 1)) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   facet_wrap(~param, ncol = 2, scales = 'free', labeller = param_labels) +
   #coord_flip() +
   labs(x = 'Lineage', y = 'Parameter estimate', colour = 'Experimental evolution treatment', shape = 'Replicate n°') +
@@ -1685,8 +1685,8 @@ TPC.EE_CI.plot <- TPC.EE_ave_preds %>%
   theme_bw() +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 4), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   labs(colour = 'Experimental evolution treatment') +
   theme(panel.grid.minor = element_blank(),
@@ -1858,8 +1858,8 @@ TPC.EE_param.plot <- TPC.EE_param %>%
   geom_hline(data = filtered_data, aes(yintercept = conf_upper), colour = 'black', size = 0.25, linetype = 'dashed') +
   geom_hline(data = filtered_data, aes(yintercept = conf_lower), colour = 'black', size = 0.25, linetype = 'dashed') +
   geom_linerange(aes(x = EE_treatment, ymin = conf_lower, ymax = conf_upper)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#848484","#4770B3", "#0F5961", "#D0A438", "#981313")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#848484","#4770B3", "#0F5961", "#D0A438", "#981313")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#BBBBBB","#0269A5", "#009988", "#DDAA33", "#CC3311")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#BBBBBB","#0269A5", "#009988", "#DDAA33", "#CC3311")) +
   facet_wrap(.~param, ncol = 2, scales = 'free', labeller = param_labels) +
   #coord_flip() +
   labs(x = 'Experimental evolution treatment', y = 'Parameter estimate', colour = 'Experimental evolution treatment') +
@@ -1896,8 +1896,8 @@ TPC.treat_plot <- TPC.preds_ave %>%
   geom_hline(aes(yintercept = 0), linetype = "dashed") +
   scale_x_continuous('Temperature (ºC)', breaks= seq(20, 32, by = 3), expand =c(0,0), limits = c(20,32)) +
   scale_y_continuous(expression(bold(Maximum~growth~rate~(d^-1))), limits = c(NA,NA)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(labels = treatment.labs, values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   labs(colour = 'Experimental evolution treatment') +
   theme(panel.grid.minor = element_blank(),
@@ -1977,8 +1977,8 @@ Topt.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.topt, label = "p.adj.signif", y.position = c(29.75, 29.95, 30.2, 30.2), tip.length = 0.01) +
   scale_y_continuous(expression(bold(T[opt]~(ºC))), expand =c(0,0), limits = c(25, 30.5)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2003,8 +2003,8 @@ rmax.plot <- TPC.extra_params_ave %>%
                      tip.length = 0.01) +
   scale_y_continuous(expression(bold(r[max]~(day^-1))), expand =c(0,0), limits = c(0.1, 0.155)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2028,8 +2028,8 @@ CTmax.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.ctmax, label = "p.adj.signif", y.position = c(31.1, 31.15, 31, 31), tip.length = 0.01) +
   scale_y_continuous(expression(bold(CT[max]~(ºC))), expand =c(0,0), limits = c(30.2, 31.2)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2053,8 +2053,8 @@ CTmin.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.ctmin, label = "p.adj.signif", y.position = c(21, 22.5, 23, 23.5, 22, 22, 21), tip.length = 0.01) +
   scale_y_continuous(expression(bold(CT[min]~(ºC))), expand =c(0,0), limits = c(12, 24)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2078,8 +2078,8 @@ Tbr.plot <- TPC.extra_params_ave %>%
   stat_pvalue_manual(tukey_hsd.tbr, label = "p.adj.signif", y.position = c(7, 7.2, 7.4, 7.6, 5.8, 5.8), tip.length = 0.01) +
   scale_y_continuous(expression(bold(T[br]~(ºC))), expand =c(0,0), limits = c(4, 8)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2103,8 +2103,8 @@ TSM.plot <- TPC.extra_params_ave %>%
   geom_boxplot(aes(EE_treatment, y = estimate, fill = EE_treatment)) +
   scale_y_continuous(expression(bold(TSM~(ºC))), expand =c(0,0), limits = c(1, 6.5)) +
   scale_x_discrete('Experimental evolution treatment', labels = treatment.labs) +
-  scale_colour_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
-  scale_fill_manual(values=c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484")) +
+  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -2144,7 +2144,7 @@ PCA.TPC <- prcomp(PCA.matrix, scale = T)
 PCA.TPC_biplot <- fviz_pca_biplot(PCA.TPC, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 1.5, mean.point = FALSE,
                              fill.ind = PCA.groups, col.ind = PCA.groups, 
-                             palette = c("#981313","#D0A438", "#0F5961", "#4770B3", "#848484"),
+                             palette = c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
                              #alpha.var ="contrib",
                              col.var = "black",
                              addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
