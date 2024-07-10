@@ -178,7 +178,7 @@ Grow.plot <- EE.df %>%
                      expand = c(0,0), 
                      limits=c(-0.1,0.1), 
                      breaks = seq(-0.1,0.1, by = 0.05)) +
-  scale_fill_manual(labels = treatment.labs, values = c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values = c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         legend.title = element_text(size = 14, face = "bold"),
@@ -203,7 +203,7 @@ Phot.plot <- EE.df %>%
                      expand=c(0,0), 
                      limits=c(0.2,0.6), 
                      breaks = seq(0,0.7, by = 0.1)) +
-  scale_fill_manual(labels = treatment.labs, values = c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(labels = treatment.labs, values = c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         legend.title = element_text(size = 14, face = "bold"),

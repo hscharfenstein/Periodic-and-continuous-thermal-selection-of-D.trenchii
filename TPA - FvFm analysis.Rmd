@@ -161,8 +161,8 @@ FvFm.plot <- FvFm.df3 %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs), scales = ("free_y")) +
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Maximum~quantum~yield(F[v]/F[m]))), limits = c(0.3, 0.55), expand = c(0, 0)) +
-  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major.x = element_blank(),
@@ -188,9 +188,9 @@ Delta_FvFm.plot <- FvFm.df4 %>%
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~F[v]/F[m])), expand =c(0,0), limits = c(-0.15, 0.05)) +
   scale_colour_manual(name = 'Experimental evolution treatment',
-                      values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+                      values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   scale_fill_manual(name = 'Experimental evolution treatment',
-                    values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+                    values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -217,8 +217,8 @@ DHW_FvFm.plot <- FvFm.df5 %>%
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Maximum~quantum~yield~(F[v]/F[m]))), limits = c(0.3, 0.5), expand =c(0,0)) +
   scale_colour_manual(name = 'Experimental evolution treatment',
-                      values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+                      values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -243,8 +243,8 @@ DHW_Delta_FvFm.plot <- FvFm.df6 %>%
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment', expand =c(0,0)) +
   scale_y_continuous(expression(bold(Δ~F[v]/F[m])), expand =c(0,0), limits = c(-0.2, 0)) +
   scale_colour_manual(name = 'Experimental evolution treatment',
-                      values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+                      values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),

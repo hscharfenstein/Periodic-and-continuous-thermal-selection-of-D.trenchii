@@ -31,7 +31,7 @@ PR.df <- read_xlsx("./Physiological datasets - EE & TPA.xlsx", sheet = 8) %>%
 
 #Analyse one temperature at a time
 PR.df <- PR.df %>%
-  filter(Growth_temperature == 21) #Change temperature here to toggle between data sets
+  filter(Growth_temperature == 31) #Change temperature here to toggle between data sets
 
 #Prepare labels for plot facets
 growth.labs <- c("Growth cycle 1", "Growth cycle 2")
@@ -56,7 +56,7 @@ Rd.plot <- PR.df %>%
   facet_grid(EE_treatment~., labeller = labeller(EE_treatment = treatment.labs)) +
   scale_x_continuous('Time (seconds)', limits = c(0, 1210), breaks = seq(0, 1210, by = 400), expand = c(0,0)) +
   scale_y_continuous('Oxygen (% air saturation)') +
-  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         strip.text.x=element_text(size=14, face="bold"),
@@ -86,7 +86,7 @@ Pgross.plot <- PR.df %>%
   facet_grid(EE_treatment~., labeller = labeller(EE_treatment = treatment.labs)) +
   scale_x_continuous('Time (seconds)', limits = c(1200, 2200), breaks = seq(1200, 2200, by = 400), expand = c(0,0)) +
   scale_y_continuous('Oxygen (% air saturation)') +
-  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         strip.text.x=element_text(size=14, face="bold"),
@@ -108,8 +108,8 @@ Pgross.plot
 # Mark samples that displayed irregularities during the light phase (chambers 6,7 and 9 appear to have technical issues)
 ```{r}
 PR.df_QC <- PR.df %>%
-  #mutate(QC = case_when(Lineage %in% c('TP1-3','TP2-2', 'TP3-2', 'TP4-3', 'TP5-1') ~ 'throw',
-                        #T ~ 'keep')) #For 31°C
+  mutate(QC = case_when(Lineage %in% c('TP1-3','TP2-2', 'TP3-2', 'TP4-3', 'TP5-1') ~ 'throw',
+                        T ~ 'keep')) #For 31°C
   #mutate(QC = case_when(Lineage %in% c('TP1-2', 'TP2-1', 'TP4-3', 'TP4-5', 'TP5-1', 'TP5-6') ~ 'throw',
                         #T ~ 'keep')) #For 29°C
   #mutate(QC = case_when(Lineage %in% c('TP2-6') ~ 'throw',
@@ -118,8 +118,8 @@ PR.df_QC <- PR.df %>%
                         #T ~ 'keep')) #For 25°C
   #mutate(QC = case_when(Lineage %in% c('TP2-2', 'TP2-3', 'TP5-4', 'TP5-6') ~ 'throw',
                         #T ~ 'keep')) #For 23°C
-  mutate(QC = case_when(Lineage %in% c('TP2-2', 'TP2-6', 'TP3-2') ~ 'throw',
-                        T ~ 'keep')) #For 21°C
+  #mutate(QC = case_when(Lineage %in% c('TP2-2', 'TP2-6', 'TP3-2') ~ 'throw',
+                        #T ~ 'keep')) #For 21°C
 ```
 
 # Plot change in O2 over the entire assay, indicating samples that failed QC
@@ -138,7 +138,7 @@ PR.plot <- PR.df_QC %>%
   scale_alpha_manual(values = c(0.75, 0.05)) +
   scale_x_continuous('Time (seconds)', limits = c(0, 2200), breaks = seq(0, 2200, by = 400), expand = c(0,0)) +
   scale_y_continuous('Oxygen (% air saturation)', limits = c(75, 120), expand = c(0,0)) +
-  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(), 
@@ -160,12 +160,12 @@ PR.plot
 
 # Save and export plots
 ```{r}
-#PR.plot_31C <- PR.plot
+PR.plot_31C <- PR.plot
 #PR.plot_29C <- PR.plot
 #PR.plot_27C <- PR.plot
 #PR.plot_25C <- PR.plot
 #PR.plot_23C <- PR.plot
-PR.plot_21C <- PR.plot
+#PR.plot_21C <- PR.plot
 
 PR_plot <- ggarrange(PR.plot_31C + rremove('xlab') + rremove('ylab'),
                      PR.plot_29C + rremove('xlab') + rremove('ylab'),
@@ -184,7 +184,7 @@ PR_plot.final <- annotate_figure(PR_plot,
                                  bottom = text_grob("Time (seconds)", color = "black", face = "bold", size = 14))
 PR_plot.final
 
-ggsave(plot = PR_plot.final, "TPA - raw O2 measurements.pdf", 
+ggsave(plot = PR_plot.final, "Fig. S11.pdf", 
        path = "./",
        width = 12.5,
        height = 7.5,
@@ -208,7 +208,7 @@ Rd.plot <- PR.df %>%
   facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs)) +
   scale_x_continuous('Time (seconds)', limits = c(0, 1210), breaks = seq(0, 1210, by = 400), expand = c(0,0)) +
   scale_y_continuous('Oxygen (% air saturation)') +
-  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         strip.text.x=element_text(size=14, face="bold"),
@@ -329,7 +329,7 @@ Rd.plot_final <- Rd.df_final %>%
   geom_point() +
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
   scale_y_continuous(expression(bold(R[d]~(pmol~O[2]~min^-1~cell^-1)))) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -374,7 +374,7 @@ Pgross.plot <- PR.df %>%
   facet_grid(.~EE_treatment, labeller = labeller(EE_treatment = treatment.labs)) +
   scale_x_continuous('Time (seconds)', limits = c(1200, 2200), breaks = seq(1200, 2200, by = 400), expand = c(0,0)) +
   scale_y_continuous('Oxygen (% air saturation)') +
-  scale_colour_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(), 
         strip.text.x=element_text(size=14, face="bold"),
@@ -535,7 +535,7 @@ Pgross.plot <- Pgross.df_final %>%
   geom_point() +
   scale_x_discrete('Experimental evolution treatment') +
   scale_y_continuous(expression(P[net]~(pmol~O[2]~min^-1~cell^-1))) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -590,7 +590,7 @@ Rd.boxplots <- Rd.df_import %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
   scale_y_continuous(expression(bold(R[d]~(pmol~O[2]~min^-1~cell^-1)))) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -645,7 +645,7 @@ Pgross.boxplots <- Pgross.df_import %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
   scale_y_continuous(expression(bold(P[gross]~(pmol~O[2]~min^-1~cell^-1)))) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -702,7 +702,7 @@ Pnet.boxplots <- Pnet.df %>%
   facet_grid(.~Growth_temperature, labeller = labeller(Growth_temperature=temperature.labs)) +
   scale_x_discrete(labels = treatment.labs, 'Experimental evolution treatment') +
   scale_y_continuous(expression(bold(P[net]~(pmol~O[2]~min^-1~cell^-1)))) +
-  scale_fill_manual(values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_fill_manual(values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -753,9 +753,9 @@ RdPgross.plot <- RdPgross.df %>%
                      expand = c(0,0)) +
   scale_y_continuous(expression(bold(P[gross]~(pmol~O[2]~min^-1~cell^-1))), limits = c(-0.1, 0.5),
                      expand = c(0,0)) +
-  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   scale_fill_manual('Experimental evolution treatment', labels = treatment.labs,
-                    values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+                    values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),

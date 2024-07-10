@@ -109,9 +109,9 @@ GenCTmax.plot <- EE_TPC_sum.df %>%
   geom_point(aes(fill = EE_treatment), pch = 21, size = 3) +
   scale_x_continuous(expression(bold(Total~generations))) +
   scale_y_continuous(expression(bold(Change~CT[max]~(relative~to~Cont-amb)))) + 
-  scale_colour_manual(labels = treatment.labs, values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+  scale_colour_manual(labels = treatment.labs, values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   scale_fill_manual('Experimental evolution treatment', labels = treatment.labs,
-                    values=c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB")) +
+                    values=c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB")) +
   theme_bw() +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
@@ -151,15 +151,15 @@ PCA.sum_27C <- prcomp(PCA.sum.matrix_27C, scale = T)
 PCA.sum_biplot_27C <- fviz_pca_biplot(PCA.sum_27C, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 0.1, mean.point = FALSE,
                              fill.ind = PCA.sum.group3_27C, col.ind = PCA.sum.group3_27C, palette = c(
-                               "#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB",
-                               "#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB",
-                               "#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
+                               "#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB",
+                               "#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB",
+                               "#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB"),
                              #alpha.var ="contrib", 
                              col.var = "black",
-                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
+                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.5) +
   labs(title = "", x = "PC1: 29.4%", y = "PC2: 26.7%") + #Labs 27C
   geom_point(aes(colour = PCA.sum.group1_27C, shape = PCA.sum.group2_27C), size = 2) +
-  scale_colour_discrete(labels = treatment.labs, type = c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
+  scale_colour_discrete(labels = treatment.labs, type = c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB"),
                         limits = c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
@@ -203,15 +203,15 @@ PCA.sum_31C <- prcomp(PCA.sum.matrix_31C, scale = T)
 PCA.sum_biplot_31C <- fviz_pca_biplot(PCA.sum_31C, repel = TRUE,
                              geom.ind = "point", pointshape=19, pointsize = 0.1, mean.point = FALSE,
                              fill.ind = PCA.sum.group3_31C, col.ind = PCA.sum.group3_31C, palette = c(
-                               "#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB",
-                               "#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB",
-                               "#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
+                               "#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB",
+                               "#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB",
+                               "#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB"),
                              #alpha.var ="contrib",
                              col.var = "black",
-                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.2) +
+                             addEllipses = TRUE, ellipse.type = "confidence", ellipse.alpha = 0.5) +
   labs(title = "", x = "PC1: 44.7%", y = "PC2: 18.6%") + #Labs 31C
   geom_point(aes(colour = PCA.sum.group1_31C, shape = PCA.sum.group2_31C), size = 2) +
-  scale_colour_discrete(labels = treatment.labs, type = c("#CC3311","#DDAA33", "#009988", "#0269A5", "#BBBBBB"),
+  scale_colour_discrete(labels = treatment.labs, type = c("#882255","#BFB066", "#6047DA", "#78BBDC", "#BBBBBB"),
                         limits = c('TP1', 'TP2', 'TP3', 'TP4', 'TP5')) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
